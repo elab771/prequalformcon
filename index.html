@@ -947,86 +947,52 @@
     }
 
     /**
-     * Reads prequalform.pdf dynamically, maps interactive fields, 
-     * triggers target evaluation rules, flattens form interactivity fields, 
-     * and forces a localized background file assembly download payload.
+     * Reads prequalform.pdf, maps interactive fields securely using your exact layout identifiers,
+     * flattens the result, and initiates down-stream single binary workspace triggers.
      */
     async function populateAndDownloadPDF(data, companyName) {
         try {
-            // Fetch template binary file from local site asset path
             const response = await fetch('prequalform.pdf');
             if (!response.ok) {
                 throw new Error('Could not find prequalform.pdf in the server workspace root.');
             }
             const templateBytes = await response.arrayBuffer();
 
-            // Load document utilizing PDF-Lib
             const pdfDoc = await PDFLib.PDFDocument.load(templateBytes);
             const form = pdfDoc.getForm();
 
-            // Safe interaction mapping logic wrapper for text fields
             const safeSetText = (fieldName, value) => {
                 try {
                     const field = form.getTextField(fieldName);
                     if (field) field.setText(value || '');
                 } catch (e) {
-                    console.warn(`Text fill skipped for target key mapping signature: "${fieldName}"`, e);
+                    console.warn(`Text fill skipped for: "${fieldName}"`, e);
                 }
             };
 
-            // Safe interaction mapping logic wrapper for Checkbox selections
-            const safeSetCheck = (fieldName, checkCondition) => {
-                try {
-                    const field = form.getCheckbox(fieldName);
-                    if (field) {
-                        if (checkCondition === 'Yes' || checkCondition === true) {
-                            field.check();
-                        } else {
-                            field.uncheck();
-                        }
-                    }
-                } catch (e) {
-                    console.warn(`Checkbox toggle skipped for target key mapping signature: "${fieldName}"`, e);
-                }
-            };
+            // General Information Section Fields mapping
+            safeSetText('txtengrname', data.name);
+            safeSetText('txtnationality', data.nationality);
+            safeSetText('txtidentityno', data.identity);
+            safeSetText('txtcompanyname', companyName);
+            safeSetText('txttotalexpyr', data.total_yrs);
+            safeSetText('txttotalexpmo', data.ksa_mos);  // KSA Mos cross-mapped to txttotalexpmo per prompt specs
+            safeSetText('txtexpksayr', data.ksa_yrs);
+            safeSetText('txtexpksamo', data.total_mos);  // Total Mos cross-mapped to txtexpksamo per prompt specs
 
-            // 1. Populate explicit text parameters matching fields
-            safeSetText('CompanyName', companyName);
-            safeSetText('EngineerName', data.name);
-            safeSetText('Nationality', data.nationality);
-            safeSetText('Identity', data.identity);
-            safeSetText('ContactNo', data.contact);
-            safeSetText('TotalExpYrs', data.total_yrs);
-            safeSetText('TotalExpMos', data.total_mos);
-            safeSetText('KSAExpYrs', data.ksa_yrs);
-            safeSetText('KSAExpMos', data.ksa_mos);
-            safeSetText('Status', data.status);
-            safeSetText('Location', data.location);
-            safeSetText('Remarks', data.remarks);
-
-            // 2. Loop through dynamic layout qualification matrices variables 
+            // Matrix fields mapping loops
             data.matrix.forEach(item => {
-                if (item.mv !== undefined) {
-                    safeSetCheck(`${item.pdfPrefix}_MV`, item.mv);
-                }
-                if (item.hv !== undefined) {
-                    safeSetCheck(`${item.pdfPrefix}_HV`, item.hv);
-                }
-                if (item.ehv !== undefined) {
-                    safeSetCheck(`${item.pdfPrefix}_EHV`, item.ehv);
-                }
+                safeSetText(item.pdfField, item.value);
             });
 
-            // Flatten form interface layers to prevent alteration
+            // Flatten form layout structure to lock choices
             form.flatten();
 
-            // Save array configurations and output download
             const pdfBytes = await pdfDoc.save();
             const blob = new Blob([pdfBytes], { type: "application/pdf" });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             
-            // Generate clean clean unique string signature name configuration outputs
             const localizedSanitizedName = data.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
             link.download = `Prequalification_Profile_${localizedSanitizedName}.pdf`;
             document.body.appendChild(link);
@@ -1035,7 +1001,7 @@
 
         } catch (error) {
             console.error("PDF generation execution pipeline error details:", error);
-            alert("Error populating PDF layout. Check console to ensure target pdf matching names exist.");
+            alert("Error populating PDF form template layers. See developer console.");
         }
     }
 
@@ -1070,34 +1036,68 @@
                 location: record.querySelector('[name="profile_location[]"]').value,
                 remarks: record.querySelector('[name="profile_remarks[]"]').value,
                 matrix: [
-                    { pdfPrefix: "Batteries", mv: record.querySelector('[name="q_batteries[]"]').value },
-                    { pdfPrefix: "ACDB_DCDB", mv: record.querySelector('[name="q_acdb_dcdb[]"]').value },
-                    { pdfPrefix: "AuxRelays", mv: record.querySelector('[name="q_aux_relays[]"]').value },
-                    { pdfPrefix: "Meters", mv: record.querySelector('[name="q_meters[]"]').value },
-                    { pdfPrefix: "Tx", mv: record.querySelector('[name="q_tx_mv[]"]').value, hv: record.querySelector('[name="q_tx_hv[]"]').value, ehv: record.querySelector('[name="q_tx_ehv[]"]').value },
-                    { pdfPrefix: "Reactor", mv: record.querySelector('[name="q_reactor_mv[]"]').value, hv: record.querySelector('[name="q_reactor_hv[]"]').value, ehv: record.querySelector('[name="q_reactor_ehv[]"]').value },
-                    { pdfPrefix: "Capacitor", mv: record.querySelector('[name="q_capacitor_mv[]"]').value, hv: record.querySelector('[name="q_capacitor_hv[]"]').value, ehv: record.querySelector('[name="q_capacitor_ehv[]"]').value },
-                    { pdfPrefix: "OHTL", mv: record.querySelector('[name="q_ohtl[]"]').value },
-                    { pdfPrefix: "CableElec", mv: record.querySelector('[name="q_cable_elec_mv[]"]').value, hv: record.querySelector('[name="q_cable_elec_hv[]"]').value, ehv: record.querySelector('[name="q_cable_elec_ehv[]"]').value },
-                    { pdfPrefix: "CableHV", mv: record.querySelector('[name="q_cable_hv_mv[]"]').value, hv: record.querySelector('[name="q_cable_hv_hv[]"]').value, ehv: record.querySelector('[name="q_cable_hv_ehv[]"]').value },
-                    { pdfPrefix: "CablePD", mv: record.querySelector('[name="q_cable_pd_mv[]"]').value, hv: record.querySelector('[name="q_cable_pd_hv[]"]').value, ehv: record.querySelector('[name="q_cable_pd_ehv[]"]').value },
-                    { pdfPrefix: "Switchgear", mv: record.querySelector('[name="q_sg_eq_mv[]"]').value, hv: record.querySelector('[name="q_sg_eq_hv[]"]').value, ehv: record.querySelector('[name="q_sg_eq_ehv[]"]').value },
-                    { pdfPrefix: "SgHVCheck", mv: record.querySelector('[name="q_sg_hv_mv[]"]').value, hv: record.querySelector('[name="q_sg_hv_hv[]"]').value, ehv: record.querySelector('[name="q_sg_hv_ehv[]"]').value },
-                    { pdfPrefix: "SgPDCheck", mv: record.querySelector('[name="q_sg_pd_mv[]"]').value, hv: record.querySelector('[name="q_sg_pd_hv[]"]').value, ehv: record.querySelector('[name="q_sg_pd_ehv[]"]').value },
-                    { pdfPrefix: "SchemeCheck", mv: record.querySelector('[name="q_scheme_mv[]"]').value, hv: record.querySelector('[name="q_scheme_hv[]"]').value, ehv: record.querySelector('[name="q_scheme_ehv[]"]').value },
-                    { pdfPrefix: "CTCheck", mv: record.querySelector('[name="q_ct_mv[]"]').value, hv: record.querySelector('[name="q_ct_hv[]"]').value, ehv: record.querySelector('[name="q_ct_ehv[]"]').value },
-                    { pdfPrefix: "VTCheck", mv: record.querySelector('[name="q_vt_mv[]"]').value, hv: record.querySelector('[name="q_vt_hv[]"]').value, ehv: record.querySelector('[name="q_vt_ehv[]"]').value },
-                    { pdfPrefix: "SimpleRelay", mv: record.querySelector('[name="q_simple_relay_mv[]"]').value, hv: record.querySelector('[name="q_simple_relay_hv[]"]').value, ehv: record.querySelector('[name="q_simple_relay_ehv[]"]').value },
-                    { pdfPrefix: "AdvIED", mv: record.querySelector('[name="q_adv_ied_mv[]"]').value, hv: record.querySelector('[name="q_adv_ied_hv[]"]').value, ehv: record.querySelector('[name="q_adv_ied_ehv[]"]').value },
-                    { pdfPrefix: "Stability", mv: record.querySelector('[name="q_stability_mv[]"]').value, hv: record.querySelector('[name="q_stability_hv[]"]').value, ehv: record.querySelector('[name="q_stability_ehv[]"]').value },
-                    { pdfPrefix: "E2E", hv: record.querySelector('[name="q_e2e_hv[]"]').value, ehv: record.querySelector('[name="q_e2e_ehv[]"]').value },
-                    { pdfPrefix: "FinalTrip", mv: record.querySelector('[name="q_trip_mv[]"]').value, hv: record.querySelector('[name="q_trip_hv[]"]').value, ehv: record.querySelector('[name="q_trip_ehv[]"]').value },
-                    { pdfPrefix: "LiveSub", mv: record.querySelector('[name="q_live_substations[]"]').value },
-                    { pdfPrefix: "Coordinator", hv: record.querySelector('[name="q_coordinator_hv[]"]').value, ehv: record.querySelector('[name="q_coordinator_ehv[]"]').value }
+                    { pdfField: "txtbattcharger", value: record.querySelector('[name="q_batteries[]"]').value },
+                    { pdfField: "txtacdbdcdb", value: record.querySelector('[name="q_acdb_dcdb[]"]').value },
+                    { pdfField: "txtauxrelays", value: record.querySelector('[name="q_aux_relays[]"]').value },
+                    { pdfField: "txtmeters", value: record.querySelector('[name="q_meters[]"]').value },
+                    { pdfField: "txtxfrmrmv", value: record.querySelector('[name="q_tx_mv[]"]').value },
+                    { pdfField: "txtxfrmrhv", value: record.querySelector('[name="q_tx_hv[]"]').value },
+                    { pdfField: "txtxfrmrmv", value: record.querySelector('[name="q_tx_mv[]"]').value },
+                    { pdfField: "txtxfrmrhv", value: record.querySelector('[name="q_tx_hv[]"]').value },
+                    { pdfField: "txtxfrmrehv", value: record.querySelector('[name="q_tx_ehv[]"]').value },
+                    { pdfField: "txtshuntmv", value: record.querySelector('[name="q_reactor_mv[]"]').value },
+                    { pdfField: "txtshunthv", value: record.querySelector('[name="q_reactor_hv[]"]').value },
+                    { pdfField: "txtshuntehv", value: record.querySelector('[name="q_reactor_ehv[]"]').value },
+                    { pdfField: "txtcapmv", value: record.querySelector('[name="q_capacitor_mv[]"]').value },
+                    { pdfField: "txtcaphv", value: record.querySelector('[name="q_capacitor_hv[]"]').value },
+                    { pdfField: "txtcapehv", value: record.querySelector('[name="q_capacitor_ehv[]"]').value },
+                    { pdfField: "txtohtl", value: record.querySelector('[name="q_ohtl[]"]').value },
+                    { pdfField: "txtcableelecmv", value: record.querySelector('[name="q_cable_elec_mv[]"]').value },
+                    { pdfField: "txtcableelechv", value: record.querySelector('[name="q_cable_elec_hv[]"]').value },
+                    { pdfField: "txtcableelecehv", value: record.querySelector('[name="q_cable_elec_ehv[]"]').value },
+                    { pdfField: "txtcablehvmv", value: record.querySelector('[name="q_cable_hv_mv[]"]').value },
+                    { pdfField: "txtcablehvhv", value: record.querySelector('[name="q_cable_hv_hv[]"]').value },
+                    { pdfField: "txtcablehvehv", value: record.querySelector('[name="q_cable_hv_ehv[]"]').value },
+                    { pdfField: "txtcablepdmv", value: record.querySelector('[name="q_cable_pd_mv[]"]').value },
+                    { pdfField: "txtcablehpdhv", value: record.querySelector('[name="q_cable_pd_hv[]"]').value },
+                    { pdfField: "txtcablepdehv", value: record.querySelector('[name="q_cable_pd_ehv[]"]').value },
+                    { pdfField: "txtswgrmv", value: record.querySelector('[name="q_sg_eq_mv[]"]').value },
+                    { pdfField: "txtswgrhv", value: record.querySelector('[name="q_sg_eq_hv[]"]').value },
+                    { pdfField: "txtswgrehv", value: record.querySelector('[name="q_sg_eq_ehv[]"]').value },
+                    { pdfField: "txtswgrhvmv", value: record.querySelector('[name="q_sg_hv_mv[]"]').value },
+                    { pdfField: "txtswgrhvhv", value: record.querySelector('[name="q_sg_hv_hv[]"]').value },
+                    { pdfField: "txtswgrhvehv", value: record.querySelector('[name="q_sg_hv_ehv[]"]').value },
+                    { pdfField: "txtswgrpdmv", value: record.querySelector('[name="q_sg_pd_mv[]"]').value },
+                    { pdfField: "txtswgrpdhv", value: record.querySelector('[name="q_sg_pd_hv[]"]').value },
+                    { pdfField: "txtswgrpdehv", value: record.querySelector('[name="q_sg_pd_ehv[]"]').value },
+                    { pdfField: "txtschememv", value: record.querySelector('[name="q_scheme_mv[]"]').value },
+                    { pdfField: "txtschemehv", value: record.querySelector('[name="q_scheme_hv[]"]').value },
+                    { pdfField: "txtschemeehv", value: record.querySelector('[name="q_scheme_ehv[]"]').value },
+                    { pdfField: "txtctmv", value: record.querySelector('[name="q_ct_mv[]"]').value },
+                    { pdfField: "txtcthv", value: record.querySelector('[name="q_ct_hv[]"]').value },
+                    { pdfField: "txtctehv", value: record.querySelector('[name="q_ct_ehv[]"]').value },
+                    { pdfField: "txtvtsecmv", value: record.querySelector('[name="q_vt_mv[]"]').value },
+                    { pdfField: "txtvtsechv", value: record.querySelector('[name="q_vt_hv[]"]').value },
+                    { pdfField: "txtvtsecehv", value: record.querySelector('[name="q_vt_ehv[]"]').value },
+                    { pdfField: "txtsimplerelaysmv", value: record.querySelector('[name="q_simple_relay_mv[]"]').value },
+                    { pdfField: "txtsimplerelayshv", value: record.querySelector('[name="q_simple_relay_hv[]"]').value },
+                    { pdfField: "txtsimplerelaysehv", value: record.querySelector('[name="q_simple_relay_ehv[]"]').value },
+                    { pdfField: "txtadvancedprotmv", value: record.querySelector('[name="q_adv_ied_mv[]"]').value },
+                    { pdfField: "txtadvancedprothv", value: record.querySelector('[name="q_adv_ied_hv[]"]').value },
+                    { pdfField: "txtadvancedprotehv", value: record.querySelector('[name="q_adv_ied_ehv[]"]').value },
+                    { pdfField: "txtstabmv", value: record.querySelector('[name="q_stability_mv[]"]').value },
+                    { pdfField: "txtstabhv", value: record.querySelector('[name="q_stability_hv[]"]').value },
+                    { pdfField: "txtstabehv", value: record.querySelector('[name="q_stability_ehv[]"]').value },
+                    { pdfField: "txtendtoendhv", value: record.querySelector('[name="q_e2e_hv[]"]').value },
+                    { pdfField: "txtendtoendehv", value: record.querySelector('[name="q_e2e_ehv[]"]').value },
+                    { pdfField: "txtfttmv", value: record.querySelector('[name="q_trip_mv[]"]').value },
+                    { pdfField: "txtftthv", value: record.querySelector('[name="q_trip_hv[]"]').value },
+                    { pdfField: "txtfttehv", value: record.querySelector('[name="q_trip_ehv[]"]').value },
+                    { pdfField: "txtschv", value: record.querySelector('[name="q_coordinator_hv[]"]').value },
+                    { pdfField: "txtscehv", value: record.querySelector('[name="q_coordinator_ehv[]"]').value }
                 ]
             };
 
-            // Call the direct interactive mapping script sequence payload
             await populateAndDownloadPDF(engData, companyName);
 
             row.push(companyName, engData.name, engData.nationality, engData.identity, engData.total_yrs, engData.total_mos, engData.ksa_yrs, engData.ksa_mos, engData.contact, engData.status, engData.location, engData.remarks);
