@@ -387,7 +387,6 @@
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 </head>
 <body>
 
@@ -835,7 +834,6 @@
         }
     }
 
-    // Colors qualification fields dynamically based on selection state[cite: 2]
     function initSelectColors(context) {
         const dropdowns = context.querySelectorAll('.qual-select');
         dropdowns.forEach(select => {
@@ -947,55 +945,77 @@
         }
     }
 
-    // Stamps the filled out criteria onto the exact prequalform.pdf layout document
+    /* Generates an isolated preview window of the profile criteria layout and calls the browser native render-to-PDF print subsystem */
     async function generateEngineerPDF(data, companyName) {
-        try {
-            const response = await fetch('prequalform.pdf');
-            if (!response.ok) throw new Error("Could not find 'prequalform.pdf' template file.");
-            
-            const templateBytes = await response.arrayBuffer();
-            const { PDFDocument, rgb } = PDFLib;
-            
-            const pdfDoc = await PDFDocument.load(templateBytes);
-            const firstPage = pdfDoc.getPages()[0];
-            
-            const fontBold = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
-            const fontNormal = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+        const printWindow = window.open('', '_blank', 'width=1200,height=900');
+        
+        let matrixHtml = '';
+        data.matrix.forEach(row => {
+            matrixHtml += `
+                <tr>
+                    <td style="font-weight:bold; padding:6px; border:1px solid #000;">${row.label}</td>
+                    <td style="text-align:center; border:1px solid #000; font-weight:bold; background-color:${row.mv === 'Yes' ? '#00b050' : '#fff'}; color:${row.mv === 'Yes' ? '#fff' : '#000'}">${row.mv || 'No'}</td>
+                    <td style="text-align:center; border:1px solid #000; font-weight:bold; background-color:${row.hv === 'Yes' ? '#00b050' : (row.hv === undefined ? '#000' : '#fff')}; color:${row.hv === 'Yes' ? '#fff' : '#000'}">${row.hv !== undefined ? row.hv : ''}</td>
+                    <td style="text-align:center; border:1px solid #000; font-weight:bold; background-color:${row.ehv === 'Yes' ? '#00b050' : (row.ehv === undefined ? '#000' : '#fff')}; color:${row.ehv === 'Yes' ? '#fff' : '#000'}">${row.ehv !== undefined ? row.ehv : ''}</td>
+                </tr>
+            `;
+        });
 
-            // Mapping form coordinates back to the respective blue highlights
-            firstPage.drawText(companyName, { x: 195, y: 704, size: 10, font: fontNormal, color: rgb(0, 0, 0) });
-            firstPage.drawText(data.name, { x: 195, y: 682, size: 10, font: fontNormal, color: rgb(0, 0, 0) });
-            firstPage.drawText(data.nationality, { x: 195, y: 660, size: 10, font: fontNormal, color: rgb(0, 0, 0) });
-            firstPage.drawText(data.identity, { x: 195, y: 638, size: 10, font: fontNormal, color: rgb(0, 0, 0) });
-            firstPage.drawText(data.contact, { x: 195, y: 550, size: 10, font: fontNormal, color: rgb(0, 0, 0) });
+        const templateDocStructure = `
+            <html>
+            <head>
+                <title>Prequalification Profile - ${data.name}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 30px; color: #000; }
+                    h2 { text-align: center; font-size: 18px; text-transform: uppercase; margin-bottom: 25px; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; }
+                    th, td { border: 1px solid #000; padding: 8px; text-align: left; vertical-align: middle; }
+                    th { background-color: #f2f2f2; font-weight: bold; text-align: center; }
+                    .section-title { font-weight: bold; background-color: #e0e0e0; text-transform: uppercase; }
+                </style>
+            </head>
+            <body>
+                <h2>Engineer Qualification Evaluation Profile</h2>
+                <table>
+                    <tr><th colspan="2" class="section-title">General Information</th></tr>
+                    <tr><td style="width:30%; font-weight:bold;">Company Name</td><td>${companyName}</td></tr>
+                    <tr><td style="font-weight:bold;">Engineer Name</td><td>${data.name}</td></tr>
+                    <tr><td style="font-weight:bold;">Nationality</td><td>${data.nationality}</td></tr>
+                    <tr><td style="font-weight:bold;">Identity / Iqama</td><td>${data.identity}</td></tr>
+                    <tr><td style="font-weight:bold;">Contact No</td><td>${data.contact}</td></tr>
+                    <tr><td style="font-weight:bold;">Total Experience</td><td>${data.total_yrs} Years, ${data.total_mos} Months</td></tr>
+                    <tr><td style="font-weight:bold;">KSA Experience</td><td>${data.ksa_yrs} Years, ${data.ksa_mos} Months</td></tr>
+                    <tr><td style="font-weight:bold;">Application Status</td><td>${data.status}</td></tr>
+                    <tr><td style="font-weight:bold;">Location Bounds</td><td>${data.location}</td></tr>
+                    <tr><td style="font-weight:bold;">Remarks / Track Record</td><td>${data.remarks}</td></tr>
+                </table>
 
-            // Writing Years and Months concurrently into the form grid blocks
-            firstPage.drawText(data.total_yrs || "0", { x: 195, y: 604, size: 10, font: fontBold, color: rgb(0, 0, 0) });
-            firstPage.drawText(data.total_mos || "0", { x: 315, y: 604, size: 10, font: fontBold, color: rgb(0, 0, 0) });
-            firstPage.drawText(data.ksa_yrs || "0", { x: 195, y: 577, size: 10, font: fontBold, color: rgb(0, 0, 0) });
-            firstPage.drawText(data.ksa_mos || "0", { x: 315, y: 577, size: 10, font: fontBold, color: rgb(0, 0, 0) });
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;">Qualification Equipment Group Type</th>
+                            <th style="width:15%;">MV</th>
+                            <th style="width:15%;">HV</th>
+                            <th style="width:15%;">EHV</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${matrixHtml}
+                    </tbody>
+                </table>
+                <script>
+                    window.onload = function() {
+                        window.print();
+                        setTimeout(function() { window.close(); }, 500);
+                    };
+                <\/script>
+            </body>
+            </html>
+        `;
 
-            // Checklist Matrix Row positions configuration mapping
-            let matrixStartY = 432;
-            let rowSpacing = 14.5;
-
-            data.matrix.forEach((row, idx) => {
-                let currentY = matrixStartY - (idx * rowSpacing);
-                if (row.mv === "Yes") firstPage.drawText("X", { x: 232, y: currentY, size: 10, font: fontBold, color: rgb(0, 0.5, 0) });
-                if (row.hv === "Yes") firstPage.drawText("X", { x: 275, y: currentY, size: 10, font: fontBold, color: rgb(0, 0.5, 0) });
-                if (row.ehv === "Yes") firstPage.drawText("X", { x: 315, y: currentY, size: 10, font: fontBold, color: rgb(0, 0.5, 0) });
-            });
-
-            const pdfBytes = await pdfDoc.save();
-            const blob = new Blob([pdfBytes], { type: "application/pdf" });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = `Filled_Prequalification_${data.name.replace(/[^a-z0-9]/gi, '_')}.pdf`;
-            link.click();
-        } catch (err) {
-            console.error(err);
-            alert("Error loading PDF template. Verify that 'prequalform.pdf' exists in the root folder.");
-        }
+        printWindow.document.open();
+        printWindow.document.write(templateDocStructure);
+        printWindow.document.close();
     }
 
     async function handleFormSubmission(event) {
@@ -1029,30 +1049,30 @@
                 location: record.querySelector('[name="profile_location[]"]').value,
                 remarks: record.querySelector('[name="profile_remarks[]"]').value,
                 matrix: [
-                    { label: "Batteries", mv: record.querySelector('[name="q_batteries[]"]').value },
-                    { label: "ACDB", mv: record.querySelector('[name="q_acdb_dcdb[]"]').value },
-                    { label: "Aux", mv: record.querySelector('[name="q_aux_relays[]"]').value },
+                    { label: "Batteries & Chargers", mv: record.querySelector('[name="q_batteries[]"]').value },
+                    { label: "ACDB & DCDB", mv: record.querySelector('[name="q_acdb_dcdb[]"]').value },
+                    { label: "Aux. / Trip Relays & MCCB", mv: record.querySelector('[name="q_aux_relays[]"]').value },
                     { label: "Meters", mv: record.querySelector('[name="q_meters[]"]').value },
-                    { label: "Tx", mv: record.querySelector('[name="q_tx_mv[]"]').value, hv: record.querySelector('[name="q_tx_hv[]"]').value, ehv: record.querySelector('[name="q_tx_ehv[]"]').value },
-                    { label: "Reactor", mv: record.querySelector('[name="q_reactor_mv[]"]').value, hv: record.querySelector('[name="q_reactor_hv[]"]').value, ehv: record.querySelector('[name="q_reactor_ehv[]"]').value },
+                    { label: "Power Transformer", mv: record.querySelector('[name="q_tx_mv[]"]').value, hv: record.querySelector('[name="q_tx_hv[]"]').value, ehv: record.querySelector('[name="q_tx_ehv[]"]').value },
+                    { label: "Shunt Reactor", mv: record.querySelector('[name="q_reactor_mv[]"]').value, hv: record.querySelector('[name="q_reactor_hv[]"]').value, ehv: record.querySelector('[name="q_reactor_ehv[]"]').value },
                     { label: "Capacitor", mv: record.querySelector('[name="q_capacitor_mv[]"]').value, hv: record.querySelector('[name="q_capacitor_hv[]"]').value, ehv: record.querySelector('[name="q_capacitor_ehv[]"]').value },
                     { label: "OHTL", mv: record.querySelector('[name="q_ohtl[]"]').value },
-                    { label: "CableElec", mv: record.querySelector('[name="q_cable_elec_mv[]"]').value, hv: record.querySelector('[name="q_cable_elec_hv[]"]').value, ehv: record.querySelector('[name="q_cable_elec_ehv[]"]').value },
-                    { label: "CableHV", mv: record.querySelector('[name="q_cable_hv_mv[]"]').value, hv: record.querySelector('[name="q_cable_hv_hv[]"]').value, ehv: record.querySelector('[name="q_cable_hv_ehv[]"]').value },
-                    { label: "CablePD", mv: record.querySelector('[name="q_cable_pd_mv[]"]').value, hv: record.querySelector('[name="q_cable_pd_hv[]"]').value, ehv: record.querySelector('[name="q_cable_pd_ehv[]"]').value },
-                    { label: "SgEq", mv: record.querySelector('[name="q_sg_eq_mv[]"]').value, hv: record.querySelector('[name="q_sg_eq_hv[]"]').value, ehv: record.querySelector('[name="q_sg_eq_ehv[]"]').value },
-                    { label: "SgHV", mv: record.querySelector('[name="q_sg_hv_mv[]"]').value, hv: record.querySelector('[name="q_sg_hv_hv[]"]').value, ehv: record.querySelector('[name="q_sg_hv_ehv[]"]').value },
-                    { label: "SgPD", mv: record.querySelector('[name="q_sg_pd_mv[]"]').value, hv: record.querySelector('[name="q_sg_pd_hv[]"]').value, ehv: record.querySelector('[name="q_sg_pd_ehv[]"]').value },
-                    { label: "Scheme", mv: record.querySelector('[name="q_scheme_mv[]"]').value, hv: record.querySelector('[name="q_scheme_hv[]"]').value, ehv: record.querySelector('[name="q_scheme_ehv[]"]').value },
-                    { label: "CT", mv: record.querySelector('[name="q_ct_mv[]"]').value, hv: record.querySelector('[name="q_ct_hv[]"]').value, ehv: record.querySelector('[name="q_ct_ehv[]"]').value },
-                    { label: "VT", mv: record.querySelector('[name="q_vt_mv[]"]').value, hv: record.querySelector('[name="q_vt_hv[]"]').value, ehv: record.querySelector('[name="q_vt_ehv[]"]').value },
-                    { label: "SimpleRelay", mv: record.querySelector('[name="q_simple_relay_mv[]"]').value, hv: record.querySelector('[name="q_simple_relay_hv[]"]').value, ehv: record.querySelector('[name="q_simple_relay_ehv[]"]').value },
-                    { label: "AdvIED", mv: record.querySelector('[name="q_adv_ied_mv[]"]').value, hv: record.querySelector('[name="q_adv_ied_hv[]"]').value, ehv: record.querySelector('[name="q_adv_ied_ehv[]"]').value },
-                    { label: "Stability", mv: record.querySelector('[name="q_stability_mv[]"]').value, hv: record.querySelector('[name="q_stability_hv[]"]').value, ehv: record.querySelector('[name="q_stability_ehv[]"]').value },
-                    { label: "E2E", hv: record.querySelector('[name="q_e2e_hv[]"]').value, ehv: record.querySelector('[name="q_e2e_ehv[]"]').value },
-                    { label: "Trip", mv: record.querySelector('[name="q_trip_mv[]"]').value, hv: record.querySelector('[name="q_trip_hv[]"]').value, ehv: record.querySelector('[name="q_trip_ehv[]"]').value },
-                    { label: "Live", mv: record.querySelector('[name="q_live_substations[]"]').value },
-                    { label: "Coordinator", hv: record.querySelector('[name="q_coordinator_hv[]"]').value, ehv: record.querySelector('[name="q_coordinator_ehv[]"]').value }
+                    { label: "Power Cable Electrical Tests", mv: record.querySelector('[name="q_cable_elec_mv[]"]').value, hv: record.querySelector('[name="q_cable_elec_hv[]"]').value, ehv: record.querySelector('[name="q_cable_elec_ehv[]"]').value },
+                    { label: "Power Cable HV Test", mv: record.querySelector('[name="q_cable_hv_mv[]"]').value, hv: record.querySelector('[name="q_cable_hv_hv[]"]').value, ehv: record.querySelector('[name="q_cable_hv_ehv[]"]').value },
+                    { label: "Power Cable PD Test", mv: record.querySelector('[name="q_cable_pd_mv[]"]').value, hv: record.querySelector('[name="q_cable_pd_hv[]"]').value, ehv: record.querySelector('[name="q_cable_pd_ehv[]"]').value },
+                    { label: "Switchgear Equipment", mv: record.querySelector('[name="q_sg_eq_mv[]"]').value, hv: record.querySelector('[name="q_sg_eq_hv[]"]').value, ehv: record.querySelector('[name="q_sg_eq_ehv[]"]').value },
+                    { label: "Switchgear HV Test", mv: record.querySelector('[name="q_sg_hv_mv[]"]').value, hv: record.querySelector('[name="q_sg_hv_hv[]"]').value, ehv: record.querySelector('[name="q_sg_hv_ehv[]"]').value },
+                    { label: "Switchgear PD Test", mv: record.querySelector('[name="q_sg_pd_mv[]"]').value, hv: record.querySelector('[name="q_sg_pd_hv[]"]').value, ehv: record.querySelector('[name="q_sg_pd_ehv[]"]').value },
+                    { label: "Scheme Check", mv: record.querySelector('[name="q_scheme_mv[]"]').value, hv: record.querySelector('[name="q_scheme_hv[]"]').value, ehv: record.querySelector('[name="q_scheme_ehv[]"]').value },
+                    { label: "CT Primary & Secondary Injection", mv: record.querySelector('[name="q_ct_mv[]"]').value, hv: record.querySelector('[name="q_ct_hv[]"]').value, ehv: record.querySelector('[name="q_ct_ehv[]"]').value },
+                    { label: "VT Secondary Injection", mv: record.querySelector('[name="q_vt_mv[]"]').value, hv: record.querySelector('[name="q_vt_hv[]"]').value, ehv: record.querySelector('[name="q_vt_ehv[]"]').value },
+                    { label: "Simple Protection Relays", mv: record.querySelector('[name="q_simple_relay_mv[]"]').value, hv: record.querySelector('[name="q_simple_relay_hv[]"]').value, ehv: record.querySelector('[name="q_simple_relay_ehv[]"]').value },
+                    { label: "Advanced Protection & Control IEDs", mv: record.querySelector('[name="q_adv_ied_mv[]"]').value, hv: record.querySelector('[name="q_adv_ied_hv[]"]').value, ehv: record.querySelector('[name="q_adv_ied_ehv[]"]').value },
+                    { label: "Stability Test", mv: record.querySelector('[name="q_stability_mv[]"]').value, hv: record.querySelector('[name="q_stability_hv[]"]').value, ehv: record.querySelector('[name="q_stability_ehv[]"]').value },
+                    { label: "End To End Test", hv: record.querySelector('[name="q_e2e_hv[]"]').value, ehv: record.querySelector('[name="q_e2e_ehv[]"]').value },
+                    { label: "Final Trip Test", mv: record.querySelector('[name="q_trip_mv[]"]').value, hv: record.querySelector('[name="q_trip_hv[]"]').value, ehv: record.querySelector('[name="q_trip_ehv[]"]').value },
+                    { label: "Live Substations", mv: record.querySelector('[name="q_live_substations[]"]').value },
+                    { label: "Site Coordinator", hv: record.querySelector('[name="q_coordinator_hv[]"]').value, ehv: record.querySelector('[name="q_coordinator_ehv[]"]').value }
                 ]
             };
 
