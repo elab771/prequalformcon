@@ -179,7 +179,7 @@
             width: 45%;
         }
 
-        /* Total adjusted width: 100px (Status) + 119px (Location) + 255px (Remarks) = 474px */
+        /* Total adjusted wide workspace layout: 90px (Status) + 90px (Region) + 104px (Location) + 190px (Remarks) = 474px */
         .meta-fields-table {
             flex-shrink: 0;
             width: 474px;
@@ -386,6 +386,7 @@
             background-color: #218838;
         }
     </style>
+    <!-- Dependencies Libraries for spreadsheet calculations, template filling, and compression framework -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -642,7 +643,7 @@
                         <td class="profile-label">Credentials Attachment</td>
                         <td class="yellow-cell">
                             <div class="file-wrapper">
-                                <input type="file" name="profile_credentials[]" onchange="handleFileChange(this); saveFormState();">
+                                <input type="file" name="profile_credentials[]" accept=".pdf" onchange="handleFileChange(this); saveFormState();">
                                 <span class="upload-badge">✓ Attached</span>
                             </div>
                         </td>
@@ -651,7 +652,7 @@
                         <td class="profile-label">Previous Approval (if any)</td>
                         <td class="yellow-cell">
                             <div class="file-wrapper">
-                                <input type="file" name="profile_approval[]" onchange="handleFileChange(this); saveFormState();">
+                                <input type="file" name="profile_approval[]" accept=".pdf" onchange="handleFileChange(this); saveFormState();">
                                 <span class="upload-badge">✓ Attached</span>
                             </div>
                         </td>
@@ -787,9 +788,10 @@
                     <table class="meta-fields-table">
                         <thead>
                             <tr>
-                                <th style="width: 100px;">Status</th>
-                                <th style="width: 119px;">Location</th>
-                                <th style="width: 255px;">Remarks</th> 
+                                <th style="width: 90px;">Status</th>
+                                <th style="width: 90px;">Region</th>
+                                <th style="width: 104px;">Location</th>
+                                <th style="width: 190px;">Remarks</th> 
                             </tr>
                         </thead>
                         <tbody>
@@ -799,6 +801,15 @@
                                         <option value=""></option>
                                         <option value="New">New</option>
                                         <option value="Upgrade">Upgrade</option>
+                                    </select>
+                                </td>
+                                <td class="yellow-cell">
+                                    <select name="profile_region[]" class="meta-select" onchange="saveFormState()">
+                                        <option value=""></option>
+                                        <option value="COA">COA</option>
+                                        <option value="EOA">EOA</option>
+                                        <option value="SOA">SOA</option>
+                                        <option value="WOA">WOA</option>
                                     </select>
                                 </td>
                                 <td class="yellow-cell">
@@ -812,7 +823,7 @@
                     </table>
 
                     <div class="qualifications-note-box">
-                        <strong>Note:</strong> Credentials shall be a merged file of the following in order: &nbsp;1. Iqama or ID &nbsp;2. Muqeem Information &nbsp;3. Engineer's CV (should be stamped, updated and brief) &nbsp;4. PD certificate from the PD measuring unit manufacturer &nbsp;5. Engineering Accreditations certificates from Saudi council of engineers (the specialization must be shown) + barcode &nbsp;6. GOSI (shows your company's name as an employer - for Saudis only) + barcode
+                        <strong>Note:</strong> Credentials shall be a merged file of the following in order: &nbsp;1. Generated Form PDF &nbsp;2. Previous Approval (if attached) &nbsp;3. Credentials Attachment (if attached)
                     </div>
                 </div>
             </div>
@@ -983,6 +994,18 @@
         return await pdfDoc.save();
     }
 
+    /**
+     * Helper function to extract arraybuffer from raw file uploads
+     */
+    function readAsArrayBuffer(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error);
+            reader.readAsArrayBuffer(file);
+        });
+    }
+
     async function handleFormSubmission(event) {
         event.preventDefault();
 
@@ -991,10 +1014,10 @@
 
         const companyName = document.getElementById('global_company_name').value;
 
-        // Base structural headers plus fully detailed qualification labels for Excel log matrix inclusion
+        // Header listing capturing structural modifications
         const headers = [
             "Company Name", "Engineer Name", "Nationality", "Identity", "Total Exp Yrs", "Total Exp Mos", 
-            "KSA Exp Yrs", "KSA Exp Mos", "Contact No", "Status", "Location", "Remarks",
+            "KSA Exp Yrs", "KSA Exp Mos", "Contact No", "Status", "Region", "Location", "Remarks",
             "Batteries & Chargers", "ACDB & DCDB", "Aux. / Trip Relays & MCCB", "Meters",
             "Power Transformer (MV)", "Power Transformer (HV)", "Power Transformer (EHV)",
             "Shunt Reactor (MV)", "Shunt Reactor (HV)", "Shunt Reactor (EHV)",
@@ -1017,8 +1040,6 @@
         ];
 
         const excelData = [headers];
-
-        // Initialize internal background archival frameworks
         const zip = new JSZip();
         
         try {
@@ -1031,6 +1052,10 @@
             for (let record of records) {
                 const row = [];
                 
+                // Get file upload elements
+                const approvalInput = record.querySelector('[name="profile_approval[]"]');
+                const credentialsInput = record.querySelector('[name="profile_credentials[]"]');
+
                 const engData = {
                     name: record.querySelector('[name="profile_name[]"]').value,
                     nationality: record.querySelector('[name="profile_nationality[]"]').value,
@@ -1041,6 +1066,7 @@
                     ksa_mos: record.querySelector('[name="profile_ksa_exp_mos[]"]').value,
                     contact: record.querySelector('[name="profile_contact[]"]').value,
                     status: record.querySelector('[name="profile_status[]"]').value,
+                    region: record.querySelector('[name="profile_region[]"]').value,
                     location: record.querySelector('[name="profile_location[]"]').value,
                     remarks: record.querySelector('[name="profile_remarks[]"]').value,
                     matrix: [
@@ -1105,15 +1131,49 @@
                     ]
                 };
 
-                // Generate raw file byte vectors and pack directly inside compression storage
-                const pdfBytes = await getPopulatedPDFBytes(engData, companyName, templateBytes);
-                const synchronizedCleanName = engData.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                zip.file(`Prequalification_Profile_${synchronizedCleanName}.pdf`, pdfBytes);
-
-                // Populate Excel row profile fields
-                row.push(companyName, engData.name, engData.nationality, engData.identity, engData.total_yrs, engData.total_mos, engData.ksa_yrs, engData.ksa_mos, engData.contact, engData.status, engData.location, engData.remarks);
+                // 1. Generate base filled PDF form bytes
+                const populatedBytes = await getPopulatedPDFBytes(engData, companyName, templateBytes);
                 
-                // Dynamically push corresponding checked validation matrix cells over sheet columns tracking list array matching order
+                // Initialize merging framework document
+                const mergedPdf = await PDFLib.PDFDocument.create();
+                
+                // Load base generated form into the merger instance
+                const sourceFormPdf = await PDFLib.PDFDocument.load(populatedBytes);
+                const formPages = await mergedPdf.copyPages(sourceFormPdf, sourceFormPdf.getPageIndices());
+                formPages.forEach(p => mergedPdf.addPage(p));
+
+                // 2. Sequence Append: Previous Approval File (if uploaded)
+                if (approvalInput && approvalInput.files.length > 0) {
+                    try {
+                        const approvalBytes = await readAsArrayBuffer(approvalInput.files[0]);
+                        const approvalDoc = await PDFLib.PDFDocument.load(approvalBytes);
+                        const approvalPages = await mergedPdf.copyPages(approvalDoc, approvalDoc.getPageIndices());
+                        approvalPages.forEach(p => mergedPdf.addPage(p));
+                    } catch(err) {
+                        console.error(`Failed to merge Approval document layer for ${engData.name}:`, err);
+                    }
+                }
+
+                // 3. Sequence Append: Credentials File (if uploaded)
+                if (credentialsInput && credentialsInput.files.length > 0) {
+                    try {
+                        const credentialsBytes = await readAsArrayBuffer(credentialsInput.files[0]);
+                        const credentialsDoc = await PDFLib.PDFDocument.load(credentialsBytes);
+                        const credentialsPages = await mergedPdf.copyPages(credentialsDoc, credentialsDoc.getPageIndices());
+                        credentialsPages.forEach(p => mergedPdf.addPage(p));
+                    } catch(err) {
+                        console.error(`Failed to merge Credentials file layer for ${engData.name}:`, err);
+                    }
+                }
+
+                // Finalize merged output block vector
+                const finalPdfBytes = await mergedPdf.save();
+                const synchronizedCleanName = engData.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                zip.file(`Prequalification_Profile_${synchronizedCleanName}.pdf`, finalPdfBytes);
+
+                // Populate Excel sheet row values array sequence parameters
+                row.push(companyName, engData.name, engData.nationality, engData.identity, engData.total_yrs, engData.total_mos, engData.ksa_yrs, engData.ksa_mos, engData.contact, engData.status, engData.region, engData.location, engData.remarks);
+                
                 engData.matrix.forEach(item => {
                     row.push(item.value);
                 });
@@ -1121,13 +1181,13 @@
                 excelData.push(row);
             }
 
-            // Write Spreadsheet matrix workbook configuration asset output
+            // Write Spreadsheet log file matrix workbook asset
             const worksheet = XLSX.utils.aoa_to_sheet(excelData);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Qualifications Tracker Data");
             XLSX.writeFile(workbook, "Engineers_Qualifications_Report.xlsx");
 
-            // Finalize compression container package payload array structures
+            // Finalize zip compression package compilation download vector
             const zipContentBlob = await zip.generateAsync({ type: "blob" });
             const zipLinkElement = document.createElement('a');
             zipLinkElement.href = URL.createObjectURL(zipContentBlob);
@@ -1136,7 +1196,7 @@
             zipLinkElement.click();
             document.body.removeChild(zipLinkElement);
 
-            // Execute client-side legacy distribution alert mail links
+            // Trigger mail client fallback intent layout routing
             const emailSubject = encodeURIComponent("Engineers Qualification Tracker Export Submission");
             const emailBody = encodeURIComponent("Hello,\n\nPlease find attached spreadsheet data logs and generated qualification packages.\n\nBest Regards.");
             window.location.href = `mailto:?subject=${emailSubject}&body=${emailBody}`;
