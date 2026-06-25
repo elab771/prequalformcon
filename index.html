@@ -376,6 +376,7 @@
             background-color: #218838;
         }
     </style>
+    <!-- Dependencies Libraries for spreadsheet calculations, template filling, and compression framework -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -628,6 +629,7 @@
                         <td class="profile-label">Contact No</td>
                         <td class="yellow-cell"><input type="text" name="profile_contact[]" oninput="saveFormState()"></td>
                     </tr>
+                    <!-- Tooltip condition criteria mapped onto root parent wrapping cells -->
                     <tr title="Please make sure the file you will be uploading here is a merged file of the following IN SEQUENCE:&#10;&#10;1) Previous Approval Form(if available)&#10;2) Iqama or ID&#10;3) Muqeem Information&#10;4) Engineer's CV(should be stamped, updated and brief)&#10;5) PD Certificate from the PD measuring unit manufacturer(see PD certificate conditions)&#10;6) Engineering Accreditation certifications from Saudi council of Engineers(the specialization must be shown) + barcode&#10;7) GOSI(showing your company's name as an employer - for Saudis only)+barcode.">
                         <td class="profile-label">Credentials Attachment</td>
                         <td class="yellow-cell">
@@ -719,7 +721,7 @@
                                 <td class="qual-cell"><select name="q_cable_elec_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td class="qual-cell"><select name="q_cable_elec_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td class="qual-cell"><select name="q_cable_elec_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td>Scheme Check Test</td>
+                                <td>Scheme Check</td>
                                 <td class="qual-cell"><select name="q_scheme_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td class="qual-cell"><select name="q_scheme_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td class="qual-cell"><select name="q_scheme_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
@@ -747,7 +749,7 @@
                             <tr>
                                 <td>Live Substations</td>
                                 <td class="qual-cell"><select name="q_live_substations[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td>Power Cable PD Test</td>
+                                <td>Power Cable PD Test1)</td>
                                 <td class="qual-cell"><select name="q_cable_pd_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td class="qual-cell"><select name="q_cable_pd_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td class="qual-cell"><select name="q_cable_pd_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
@@ -757,40 +759,43 @@
                                 <td class="qual-cell"><select name="q_vt_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td>Site Coordinator</td>
                                 <td class="black-cell"></td>
-                                <td class="qual-cell"><select name="q_coord_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_coord_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_coordinator_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_coordinator_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
 
                 <div class="inline-revisions-container">
-                    <table style="width: 100%; table-layout: fixed;">
+                    <table class="meta-fields-table">
                         <tbody>
                             <tr>
-                                <td class="profile-label" style="width: 120px;">Status</td>
-                                <td class="yellow-cell" style="width: 150px;">
+                                <td class="profile-label" style="width: 60px; text-align: center;">Status</td>
+                                <td class="yellow-cell" style="width: 100px;">
                                     <select name="profile_status[]" onchange="saveFormState()">
                                         <option value=""></option>
                                         <option value="New">New</option>
-                                        <option value="Renewal">Renewal</option>
-                                        <option value="Additional">Additional</option>
+                                        <option value="Upgrade">Upgrade</option>
                                     </select>
                                 </td>
-                                <td class="profile-label" style="width: 100px;">Region</td>
-                                <td class="yellow-cell" style="width: 160px;">
+                                <td class="profile-label" style="width: 60px; text-align: center;">Region</td>
+                                <td class="yellow-cell" style="width: 100px;">
                                     <select name="profile_region[]" onchange="saveFormState()">
                                         <option value=""></option>
-                                        <option value="Western">Western</option>
-                                        <option value="Eastern">Eastern</option>
-                                        <option value="Southern">Southern</option>
-                                        <option value="Central">Central</option>
+                                        <option value="COA">COA</option>
+                                        <option value="EOA">EOA</option>
+                                        <option value="SOA">SOA</option>
+                                        <option value="WOA">WOA</option>
                                     </select>
                                 </td>
-                                <td class="profile-label" style="width: 110px;">Location</td>
-                                <td class="yellow-cell" style="width: 200px;"><input type="text" name="profile_location[]" oninput="saveFormState()"></td>
-                                <td class="profile-label" style="width: 110px;">Remarks</td>
-                                <td class="yellow-cell"><input type="text" name="profile_remarks[]" oninput="saveFormState()"></td>
+                                <td class="profile-label" style="width: 70px; text-align: center;">Location</td>
+                                <td class="yellow-cell" style="width: 180px;">
+                                    <input type="text" name="profile_location[]" oninput="saveFormState()">
+                                </td>
+                                <td class="profile-label" style="width: 70px; text-align: center;">Remarks</td>
+                                <td class="yellow-cell">
+                                    <input type="text" name="profile_remarks[]" oninput="saveFormState()">
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -801,16 +806,25 @@
 </div>
 
 <script>
-    const STORAGE_KEY = "qualificationsFormState_v4";
+    const STORAGE_KEY = 'engineer_form_persistent_state';
 
-    function triggerSequenceVerificationPrompt(e) {
-        const dialogText = "Please make sure the file you will be uploading here is a merged file of the following IN SEQUENCE:\n\n1) Previous Approval Form(if available)\n2) Iqama or ID\n3) Muqeem Information\n4) Engineer's CV(should be stamped, updated and brief)\n5) PD Certificate from the PD measuring unit manufacturer(see PD certificate conditions)\n6) Engineering Accreditation certifications from Saudi council of Engineers(the specialization must be shown) + barcode\n7) GOSI(showing your company's name as an employer - for Saudis only)+barcode.";
+    // Intercept rule to display text verification modal before opening standard folder browsers
+    function triggerSequenceVerificationPrompt(event) {
+        const dialogText = "Please make sure the file you will be uploading here is a merged file of the following IN SEQUENCE:\n\n" +
+                           "1) Previous Approval Form(if available)\n" +
+                           "2) Iqama or ID\n" +
+                           "3) Muqeem Information\n" +
+                           "4) Engineer's CV(should be stamped, updated and brief)\n" +
+                           "5) PD Certificate from the PD measuring unit manufacturer(see PD certificate conditions)\n" +
+                           "6) Engineering Accreditation certifications from Saudi council of Engineers(the specialization must be shown) + barcode\n" +
+                           "7) GOSI(showing your company's name as an employer - for Saudis only)+barcode.";
         alert(dialogText);
     }
 
     function applySelectColor(select) {
         const parentCell = select.closest('.qual-cell');
         if (!parentCell) return;
+        
         if (select.value === 'YES') {
             parentCell.className = 'qual-cell cell-yes';
         } else if (select.value === 'NO') {
@@ -856,8 +870,8 @@
 
         initSelectColors(newRecord);
         container.appendChild(newRecord);
+        
         updateRemoveButtonsVisibility();
-
         if (!savedData) saveFormState();
     }
 
@@ -888,8 +902,10 @@
         records.forEach(record => {
             const texts = [];
             const selects = [];
+            
             record.querySelectorAll('input[type="text"], textarea').forEach(el => texts.push(el.value));
             record.querySelectorAll('select').forEach(el => selects.push(el.value));
+            
             state.push({ texts, selects });
         });
 
@@ -897,41 +913,54 @@
     }
 
     function loadFormState() {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) {
-            addNewEngineer();
-            return;
-        }
-        try {
-            const parsed = JSON.parse(raw);
-            document.getElementById('global_company_name').value = parsed.companyName || '';
-            if (parsed.records && parsed.records.length > 0) {
-                parsed.records.forEach(rec => addNewEngineer(rec));
-            } else {
-                addNewEngineer();
+        const container = document.getElementById('engineers-container');
+        container.innerHTML = ''; 
+        
+        const rawState = localStorage.getItem(STORAGE_KEY);
+        if (rawState) {
+            try {
+                const parsedState = JSON.parse(rawState);
+                if (parsedState) {
+                    if (parsedState.companyName !== undefined) {
+                        document.getElementById('global_company_name').value = parsedState.companyName;
+                    }
+                    if (parsedState.records && parsedState.records.length > 0) {
+                        parsedState.records.forEach(recordData => addNewEngineer(recordData));
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to parse local form persistence state", e);
             }
-        } catch (e) {
-            console.error("Failed to restore state", e);
-            addNewEngineer();
         }
+        addNewEngineer();
     }
 
     function confirmResetForm() {
-        if (confirm("Are you sure you want to clear the form? This wipes out your saved storage state metadata rows completely.")) {
-            localStorage.removeItem(STORAGE_KEY);
+        const message = "Are you sure you want to completely clear the rows and reset the entry form?\nAll unsubmitted input details will be lost permanently.";
+        if (confirm(message)) {
             document.getElementById('global_company_name').value = '';
-            document.getElementById('engineers-container').innerHTML = '';
-            addNewEngineer();
+            localStorage.removeItem(STORAGE_KEY);
+            loadFormState();
         }
     }
 
-    /* Updated function logic:
-       - Populates both regular and ctxt-prefixed text fields according to the revision criteria.
-       - Replaces form.flatten() with selective interactive locking: All fields become read-only EXCEPT fields starting with 'ctxt' that contain no text values.
-    */
+    /**
+     * Reads prequalform.pdf template layer, executes programmatic injection mapping rules,
+     * flattens interactive configurations, and returns binary bytes directly back to queue.
+     */
     async function getPopulatedPDFBytes(data, companyName, templateBytes) {
         const pdfDoc = await PDFLib.PDFDocument.load(templateBytes);
         const form = pdfDoc.getForm();
+
+        const safeGetField = (fieldName) => {
+            try {
+                return form.getField(fieldName);
+            } catch (e) {
+                console.warn(`Field not found or inaccessible: "${fieldName}"`, e);
+                return null;
+            }
+        };
 
         const safeSetText = (fieldName, value) => {
             try {
@@ -942,53 +971,66 @@
             }
         };
 
-        // Standard profile fields
-        safeSetText('txtengrname', data.name);
-        safeSetText('txtnationality', data.nationality);
-        safeSetText('txtidentityno', data.identity);
-        safeSetText('txtcompanyname', companyName);
-        safeSetText('txttotalexpyr', data.total_yrs);
-        safeSetText('txttotalexpmo', data.ksa_mos);
-        safeSetText('txtexpksayr', data.ksa_yrs);
-        safeSetText('txtexpksamo', data.total_mos);
+        const normalizeValue = (value) => (value ?? '').toString().trim();
+        const conditionalContextValue = (value) => normalizeValue(value).toUpperCase() === 'NO' ? normalizeValue(value) : '';
 
-        // Standard dynamic qualification matrices
+        // Primary PDF field mappings
+        const primaryFieldMap = {
+            txtengrname: data.name,
+            txtnationality: data.nationality,
+            txtidentityno: data.identity,
+            txtcompanyname: companyName,
+            txttotalexpyr: data.total_yrs,
+            txttotalexpmo: data.ksa_mos,
+            txtexpksayr: data.ksa_yrs,
+            txtexpksamo: data.total_mos
+        };
+
+        Object.entries(primaryFieldMap).forEach(([fieldName, value]) => {
+            safeSetText(fieldName, value);
+        });
+
         data.matrix.forEach(item => {
             safeSetText(item.pdfField, item.value);
         });
 
-        // REVISION: Conditional ctxt-prefixed profile mappings
-        safeSetText('ctxtengrname', data.name === 'NO' ? data.name : '');
-        safeSetText('ctxtnationality', data.nationality === 'NO' ? data.nationality : '');
-        safeSetText('ctxtidentityno', data.identity === 'NO' ? data.identity : '');
-        safeSetText('ctxtcompanyname', companyName === 'NO' ? companyName : '');
-        safeSetText('ctxttotalexpyr', data.total_yrs === 'NO' ? data.total_yrs : '');
-        safeSetText('ctxttotalexpmo', data.ksa_mos === 'NO' ? data.ksa_mos : '');
-        safeSetText('ctxtexpksayr', data.ksa_yrs === 'NO' ? data.ksa_yrs : '');
-        safeSetText('ctxtexpksamo', data.total_mos === 'NO' ? data.total_mos : '');
+        // Context ("ctxt...") fields should only show the source value when that source value is NO.
+        const contextFieldMap = {
+            ctxtengrname: data.name,
+            ctxtnationality: data.nationality,
+            ctxtidentityno: data.identity,
+            ctxtcompanyname: companyName,
+            ctxttotalexpyr: data.total_yrs,
+            ctxttotalexpmo: data.ksa_mos,
+            ctxtexpksayr: data.ksa_yrs,
+            ctxtexpksamo: data.total_mos
+        };
 
-        // REVISION: Conditional ctxt-prefixed qualification fields
         data.matrix.forEach(item => {
-            // Replaces 'txt' prefix with 'ctxt' prefix dynamically
-            const ctxtFieldName = 'c' + item.pdfField; 
-            safeSetText(ctxtFieldName, item.value === 'NO' ? item.value : '');
+            contextFieldMap[`c${item.pdfField}`] = item.value;
         });
 
-        // REVISION: Field-Locking strategy instead of form.flatten()
-        const fields = form.getFields();
-        fields.forEach(field => {
-            const name = field.getName();
-            let hasValue = false;
-            
-            if (typeof field.getText === 'function') {
-                hasValue = !!field.getText();
+        Object.entries(contextFieldMap).forEach(([fieldName, value]) => {
+            safeSetText(fieldName, conditionalContextValue(value));
+        });
+
+        // Lock every field except ctxt* fields that are blank after population.
+        form.getFields().forEach(field => {
+            const fieldName = field.getName();
+            const isContextField = fieldName.startsWith('ctxt');
+            let shouldStayEditable = false;
+
+            if (isContextField) {
+                try {
+                    const textField = form.getTextField(fieldName);
+                    shouldStayEditable = normalizeValue(textField.getText()) === '';
+                } catch (e) {
+                    shouldStayEditable = false;
+                }
             }
 
-            // Lock everything EXCEPT unpopulated fields starting with 'ctxt'
-            if (name.startsWith('ctxt') && !hasValue) {
-                field.setReadOnly(false); // Unlocked / interactive
-            } else {
-                field.setReadOnly(true);  // Locked
+            if (!shouldStayEditable && typeof field.enableReadOnly === 'function') {
+                field.enableReadOnly();
             }
         });
 
@@ -1006,18 +1048,40 @@
 
     async function handleFormSubmission(event) {
         event.preventDefault();
+
         const records = document.querySelectorAll('#engineers-container .engineer-record');
         if (records.length === 0) return;
 
         const companyName = document.getElementById('global_company_name').value;
+
+        // Structured configuration array for spreadsheet headers matching current adjustments
         const headers = [
-            "Company Name", "Engineer Name", "Nationality", "Identity", "Total Exp Yrs", "Total Exp Mos", "KSA Exp Yrs", "KSA Exp Mos", "Contact No", "Status", "Region", "Location", "Remarks",
-            "Batteries & Chargers", "ACDB & DCDB", "Aux. / Trip Relays & MCCB", "Meters", "Power Transformer (MV)", "Power Transformer (HV)", "Power Transformer (EHV)", "Shunt Reactor (MV)", "Shunt Reactor (HV)", "Shunt Reactor (EHV)", "Capacitor (MV)", "Capacitor (HV)", "Capacitor (EHV)", "OHTL", "Power Cable Electrical Tests (MV)", "Power Cable Electrical Tests (HV)", "Power Cable Electrical Tests (EHV)", "Power Cable HV Test (MV)", "Power Cable HV Test (HV)", "Power Cable HV Test (EHV)", "Power Cable PD Test (MV)", "Power Cable PD Test (HV)", "Power Cable PD Test (EHV)", "Switchgear Equipment (MV)", "Switchgear Equipment (HV)", "Switchgear Equipment (EHV)", "Switchgear HV Test (MV)", "Switchgear HV Test (HV)", "Switchgear HV Test (EHV)", "Switchgear PD Test (MV)", "Switchgear PD Test (HV)", "Switchgear PD Test (EHV)", "Scheme Check Test (MV)", "Scheme Check Test (HV)", "Scheme Check Test (EHV)", "CT Primary & Secondary Injection (MV)", "CT Primary & Secondary Injection (HV)", "CT Primary & Secondary Injection (EHV)", "VT Secondary Injection (MV)", "VT Secondary Injection (HV)", "VT Secondary Injection (EHV)", "Simple Protection Relays (MV)", "Simple Protection Relays (HV)", "Simple Protection Relays (EHV)", "Advanced Protection & Control IEDs (MV)", "Advanced Protection & Control IEDs (HV)", "Advanced Protection & Control IEDs (EHV)", "Stability Test (MV)", "Stability Test (HV)", "Stability Test (EHV)", "End To End Test (HV)", "End To End Test (EHV)", "Final Trip Test (MV)", "Final Trip Test (HV)", "Final Trip Test (EHV)", "Live Substations", "Site Coordinator (HV)", "Site Coordinator (EHV)"
+            "Company Name", "Engineer Name", "Nationality", "Identity", "Total Exp Yrs", "Total Exp Mos", 
+            "KSA Exp Yrs", "KSA Exp Mos", "Contact No", "Status", "Region", "Location", "Remarks",
+            "Batteries & Chargers", "ACDB & DCDB", "Aux. / Trip Relays & MCCB", "Meters",
+            "Power Transformer (MV)", "Power Transformer (HV)", "Power Transformer (EHV)",
+            "Shunt Reactor (MV)", "Shunt Reactor (HV)", "Shunt Reactor (EHV)",
+            "Capacitor (MV)", "Capacitor (HV)", "Capacitor (EHV)", "OHTL",
+            "Power Cable Electrical Tests (MV)", "Power Cable Electrical Tests (HV)", "Power Cable Electrical Tests (EHV)",
+            "Power Cable HV Test (MV)", "Power Cable HV Test (HV)", "Power Cable HV Test (EHV)",
+            "Power Cable PD Test (MV)", "Power Cable PD Test (HV)", "Power Cable PD Test (EHV)",
+            "Switchgear Equipment (MV)", "Switchgear Equipment (HV)", "Switchgear Equipment (EHV)",
+            "Switchgear HV Test (MV)", "Switchgear HV Test (HV)", "Switchgear HV Test (EHV)",
+            "Switchgear PD Test (MV)", "Switchgear PD Test (HV)", "Switchgear PD Test (EHV)",
+            "Scheme Check (MV)", "Scheme Check (HV)", "Scheme Check (EHV)",
+            "CT Primary & Secondary Injection (MV)", "CT Primary & Secondary Injection (HV)", "CT Primary & Secondary Injection (EHV)",
+            "VT Secondary Injection (MV)", "VT Secondary Injection (HV)", "VT Secondary Injection (EHV)",
+            "Simple Protection Relays (MV)", "Simple Protection Relays (HV)", "Simple Protection Relays (EHV)",
+            "Advanced Protection & Control IEDs (MV)", "Advanced Protection & Control IEDs (HV)", "Advanced Protection & Control IEDs (EHV)",
+            "Stability Test (MV)", "Stability Test (HV)", "Stability Test (EHV)",
+            "End To End Test (HV)", "End To End Test (EHV)",
+            "Final Trip Test (MV)", "Final Trip Test (HV)", "Final Trip Test (EHV)",
+            "Live Substations", "Site Coordinator (HV)", "Site Coordinator (EHV)"
         ];
-        
+
         const excelData = [headers];
         const zip = new JSZip();
-
+        
         try {
             const response = await fetch('prequalform.pdf');
             if (!response.ok) {
@@ -1028,7 +1092,7 @@
             for (let record of records) {
                 const row = [];
                 const credentialsInput = record.querySelector('[name="profile_credentials[]"]');
-                
+
                 const engData = {
                     name: record.querySelector('[name="profile_name[]"]').value,
                     nationality: record.querySelector('[name="profile_nationality[]"]').value,
@@ -1099,46 +1163,55 @@
                         { pdfField: "txtftthv", value: record.querySelector('[name="q_trip_hv[]"]').value },
                         { pdfField: "txtfttehv", value: record.querySelector('[name="q_trip_ehv[]"]').value },
                         { pdfField: "txtlivess", value: record.querySelector('[name="q_live_substations[]"]').value },
-                        { pdfField: "txtschv", value: record.querySelector('[name="q_coord_hv[]"]').value },
-                        { pdfField: "txtscehv", value: record.querySelector('[name="q_coord_ehv[]"]').value }
+                        { pdfField: "txtschv", value: record.querySelector('[name="q_coordinator_hv[]"]').value },
+                        { pdfField: "txtscehv", value: record.querySelector('[name="q_coordinator_ehv[]"]').value }
                     ]
                 };
 
-                row.push(
-                    companyName, engData.name, engData.nationality, engData.identity,
-                    engData.total_yrs, engData.total_mos, engData.ksa_yrs, engData.ksa_mos,
-                    engData.contact, engData.status, engData.region, engData.location, engData.remarks
-                );
-                engData.matrix.forEach(m => row.push(m.value));
-                excelData.push(row);
+                // 1. Generate core form layout map bytes
+                const populatedBytes = await getPopulatedPDFBytes(engData, companyName, templateBytes);
+                
+                // Initialize clean structural instance for file tracking layers mapping loops
+                const mergedPdf = await PDFLib.PDFDocument.create();
+                
+                const sourceFormPdf = await PDFLib.PDFDocument.load(populatedBytes);
+                const formPages = await mergedPdf.copyPages(sourceFormPdf, sourceFormPdf.getPageIndices());
+                formPages.forEach(p => mergedPdf.addPage(p));
 
-                let individualBytes = await getPopulatedPDFBytes(engData, companyName, templateBytes);
-
-                if (credentialsInput.files && credentialsInput.files.length > 0) {
+                // 2. Sequential file processing attachment stream (appends directly after form document payload)
+                if (credentialsInput && credentialsInput.files.length > 0) {
                     try {
-                        const attachmentBuffer = await readAsArrayBuffer(credentialsInput.files[0]);
-                        const primaryPdfDoc = await PDFLib.PDFDocument.load(individualBytes);
-                        const secondaryPdfDoc = await PDFLib.PDFDocument.load(attachmentBuffer);
-                        
-                        const copiedPages = await primaryPdfDoc.copyPages(secondaryPdfDoc, secondaryPdfDoc.getPageIndices());
-                        copiedPages.forEach(p => primaryPdfDoc.addPage(p));
-                        
-                        individualBytes = await primaryPdfDoc.save();
-                    } catch (mergeErr) {
-                        console.error("PDF Merge Exception logs context:", mergeErr);
-                        alert(`Failed merging appended credentials upload file for: ${engData.name || 'Engineer'}`);
+                        const credentialsBytes = await readAsArrayBuffer(credentialsInput.files[0]);
+                        const credentialsDoc = await PDFLib.PDFDocument.load(credentialsBytes);
+                        const credentialsPages = await mergedPdf.copyPages(credentialsDoc, credentialsDoc.getPageIndices());
+                        credentialsPages.forEach(p => mergedPdf.addPage(p));
+                    } catch(err) {
+                        console.error(`Failed to handle uploaded sequence document layers for ${engData.name}:`, err);
                     }
                 }
 
-                const cleanedFileName = (engData.name || "Engineer_Record").replace(/[/\\?%*:|"<>\s]/g, "_");
-                zip.file(`${cleanedFileName}_Prequalification_Form.pdf`, individualBytes);
+                // Close files stream output layer matrix blocks
+                const finalPdfBytes = await mergedPdf.save();
+                const synchronizedCleanName = engData.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                zip.file(`Prequalification_Profile_${synchronizedCleanName}.pdf`, finalPdfBytes);
+
+                // Push row tracking indices values
+                row.push(companyName, engData.name, engData.nationality, engData.identity, engData.total_yrs, engData.total_mos, engData.ksa_yrs, engData.ksa_mos, engData.contact, engData.status, engData.region, engData.location, engData.remarks);
+                
+                engData.matrix.forEach(item => {
+                    row.push(item.value);
+                });
+
+                excelData.push(row);
             }
 
-            const workbook = XLSX.utils.book_new();
+            // Save Spreadsheet matrix workbook configuration output sheet
             const worksheet = XLSX.utils.aoa_to_sheet(excelData);
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Qualification Tracker Data");
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Qualifications Tracker Data");
             XLSX.writeFile(workbook, "Engineers_Qualifications_Report.xlsx");
 
+            // Complete browser pipeline download sequence loops
             const zipContentBlob = await zip.generateAsync({ type: "blob" });
             const zipLinkElement = document.createElement('a');
             zipLinkElement.href = URL.createObjectURL(zipContentBlob);
@@ -1147,6 +1220,7 @@
             zipLinkElement.click();
             document.body.removeChild(zipLinkElement);
 
+            // Forward legacy mail triggers tracking signatures
             const emailSubject = encodeURIComponent("Engineers Qualification Tracker Export Submission");
             const emailBody = encodeURIComponent("Hello,\n\nPlease find attached spreadsheet data logs and generated qualification packages.\n\nBest Regards.");
             window.location.href = `mailto:?subject=${emailSubject}&body=${emailBody}`;
