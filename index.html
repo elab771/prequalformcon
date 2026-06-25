@@ -179,14 +179,13 @@
             width: 45%;
         }
 
-        /* Total adjusted wide workspace layout: 90px (Status) + 90px (Region) + 104px (Location) + 190px (Remarks) = 474px */
+        /* Horizontal inline meta fields table block configuration */
         .meta-fields-table {
-            flex-shrink: 0;
-            width: 474px;
+            width: 100%;
             table-layout: fixed;
         }
 
-        .meta-fields-table th {
+        .meta-fields-table td {
             height: 32px;
         }
 
@@ -345,15 +344,6 @@
         .table-gap {
             width: 15px;
             flex-shrink: 0;
-        }
-
-        .qualifications-note-box {
-            font-size: 11px; 
-            line-height: 1.6;
-            color: #111111;
-            padding: 0px 15px;
-            box-sizing: border-box;
-            flex-grow: 1;
         }
 
         .btn {
@@ -639,20 +629,12 @@
                         <td class="profile-label">Contact No</td>
                         <td class="yellow-cell"><input type="text" name="profile_contact[]" oninput="saveFormState()"></td>
                     </tr>
-                    <tr>
+                    <!-- Tooltip condition criteria mapped onto root parent wrapping cells -->
+                    <tr title="Please make sure the file you will be uploading here is a merged file of the following IN SEQUENCE:&#10;&#10;1) Previous Approval Form(if available)&#10;2) Iqama or ID&#10;3) Muqeem Information&#10;4) Engineer's CV(should be stamped, updated and brief)&#10;5) PD Certificate from the PD measuring unit manufacturer(see PD certificate conditions)&#10;6) Engineering Accreditation certifications from Saudi council of Engineers(the specialization must be shown) + barcode&#10;7) GOSI(showing your company's name as an employer - for Saudis only)+barcode.">
                         <td class="profile-label">Credentials Attachment</td>
                         <td class="yellow-cell">
                             <div class="file-wrapper">
-                                <input type="file" name="profile_credentials[]" accept=".pdf" onchange="handleFileChange(this); saveFormState();">
-                                <span class="upload-badge">✓ Attached</span>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td class="profile-label">Previous Approval (if any)</td>
-                        <td class="yellow-cell">
-                            <div class="file-wrapper">
-                                <input type="file" name="profile_approval[]" accept=".pdf" onchange="handleFileChange(this); saveFormState();">
+                                <input type="file" name="profile_credentials[]" accept=".pdf" onclick="triggerSequenceVerificationPrompt(event)" onchange="handleFileChange(this); saveFormState();">
                                 <span class="upload-badge">✓ Attached</span>
                             </div>
                         </td>
@@ -786,25 +768,19 @@
 
                 <div class="inline-revisions-container">
                     <table class="meta-fields-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 90px;">Status</th>
-                                <th style="width: 90px;">Region</th>
-                                <th style="width: 104px;">Location</th>
-                                <th style="width: 190px;">Remarks</th> 
-                            </tr>
-                        </thead>
                         <tbody>
                             <tr>
-                                <td class="yellow-cell">
-                                    <select name="profile_status[]" class="meta-select" onchange="saveFormState()">
+                                <td class="profile-label" style="width: 60px; text-align: center;">Status</td>
+                                <td class="yellow-cell" style="width: 100px;">
+                                    <select name="profile_status[]" onchange="saveFormState()">
                                         <option value=""></option>
                                         <option value="New">New</option>
                                         <option value="Upgrade">Upgrade</option>
                                     </select>
                                 </td>
-                                <td class="yellow-cell">
-                                    <select name="profile_region[]" class="meta-select" onchange="saveFormState()">
+                                <td class="profile-label" style="width: 60px; text-align: center;">Region</td>
+                                <td class="yellow-cell" style="width: 100px;">
+                                    <select name="profile_region[]" onchange="saveFormState()">
                                         <option value=""></option>
                                         <option value="COA">COA</option>
                                         <option value="EOA">EOA</option>
@@ -812,19 +788,17 @@
                                         <option value="WOA">WOA</option>
                                     </select>
                                 </td>
-                                <td class="yellow-cell">
+                                <td class="profile-label" style="width: 70px; text-align: center;">Location</td>
+                                <td class="yellow-cell" style="width: 180px;">
                                     <input type="text" name="profile_location[]" oninput="saveFormState()">
                                 </td>
+                                <td class="profile-label" style="width: 70px; text-align: center;">Remarks</td>
                                 <td class="yellow-cell">
                                     <input type="text" name="profile_remarks[]" oninput="saveFormState()">
                                 </td>
                             </tr>
                         </tbody>
                     </table>
-
-                    <div class="qualifications-note-box">
-                        <strong>Note:</strong> Credentials shall be a merged file of the following in order: &nbsp;1. Generated Form PDF &nbsp;2. Previous Approval (if attached) &nbsp;3. Credentials Attachment (if attached)
-                    </div>
                 </div>
             </div>
         </div>
@@ -833,6 +807,19 @@
 
 <script>
     const STORAGE_KEY = 'engineer_form_persistent_state';
+
+    // Intercept rule to display text verification modal before opening standard folder browsers
+    function triggerSequenceVerificationPrompt(event) {
+        const dialogText = "Please make sure the file you will be uploading here is a merged file of the following IN SEQUENCE:\n\n" +
+                           "1) Previous Approval Form(if available)\n" +
+                           "2) Iqama or ID\n" +
+                           "3) Muqeem Information\n" +
+                           "4) Engineer's CV(should be stamped, updated and brief)\n" +
+                           "5) PD Certificate from the PD measuring unit manufacturer(see PD certificate conditions)\n" +
+                           "6) Engineering Accreditation certifications from Saudi council of Engineers(the specialization must be shown) + barcode\n" +
+                           "7) GOSI(showing your company's name as an employer - for Saudis only)+barcode.";
+        alert(dialogText);
+    }
 
     function applySelectColor(select) {
         const parentCell = select.closest('.qual-cell');
@@ -994,9 +981,6 @@
         return await pdfDoc.save();
     }
 
-    /**
-     * Helper function to extract arraybuffer from raw file uploads
-     */
     function readAsArrayBuffer(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -1014,7 +998,7 @@
 
         const companyName = document.getElementById('global_company_name').value;
 
-        // Header listing capturing structural modifications
+        // Structured configuration array for spreadsheet headers matching current adjustments
         const headers = [
             "Company Name", "Engineer Name", "Nationality", "Identity", "Total Exp Yrs", "Total Exp Mos", 
             "KSA Exp Yrs", "KSA Exp Mos", "Contact No", "Status", "Region", "Location", "Remarks",
@@ -1051,9 +1035,6 @@
 
             for (let record of records) {
                 const row = [];
-                
-                // Get file upload elements
-                const approvalInput = record.querySelector('[name="profile_approval[]"]');
                 const credentialsInput = record.querySelector('[name="profile_credentials[]"]');
 
                 const engData = {
@@ -1131,30 +1112,17 @@
                     ]
                 };
 
-                // 1. Generate base filled PDF form bytes
+                // 1. Generate core form layout map bytes
                 const populatedBytes = await getPopulatedPDFBytes(engData, companyName, templateBytes);
                 
-                // Initialize merging framework document
+                // Initialize clean structural instance for file tracking layers mapping loops
                 const mergedPdf = await PDFLib.PDFDocument.create();
                 
-                // Load base generated form into the merger instance
                 const sourceFormPdf = await PDFLib.PDFDocument.load(populatedBytes);
                 const formPages = await mergedPdf.copyPages(sourceFormPdf, sourceFormPdf.getPageIndices());
                 formPages.forEach(p => mergedPdf.addPage(p));
 
-                // 2. Sequence Append: Previous Approval File (if uploaded)
-                if (approvalInput && approvalInput.files.length > 0) {
-                    try {
-                        const approvalBytes = await readAsArrayBuffer(approvalInput.files[0]);
-                        const approvalDoc = await PDFLib.PDFDocument.load(approvalBytes);
-                        const approvalPages = await mergedPdf.copyPages(approvalDoc, approvalDoc.getPageIndices());
-                        approvalPages.forEach(p => mergedPdf.addPage(p));
-                    } catch(err) {
-                        console.error(`Failed to merge Approval document layer for ${engData.name}:`, err);
-                    }
-                }
-
-                // 3. Sequence Append: Credentials File (if uploaded)
+                // 2. Sequential file processing attachment stream (appends directly after form document payload)
                 if (credentialsInput && credentialsInput.files.length > 0) {
                     try {
                         const credentialsBytes = await readAsArrayBuffer(credentialsInput.files[0]);
@@ -1162,16 +1130,16 @@
                         const credentialsPages = await mergedPdf.copyPages(credentialsDoc, credentialsDoc.getPageIndices());
                         credentialsPages.forEach(p => mergedPdf.addPage(p));
                     } catch(err) {
-                        console.error(`Failed to merge Credentials file layer for ${engData.name}:`, err);
+                        console.error(`Failed to handle uploaded sequence document layers for ${engData.name}:`, err);
                     }
                 }
 
-                // Finalize merged output block vector
+                // Close files stream output layer matrix blocks
                 const finalPdfBytes = await mergedPdf.save();
                 const synchronizedCleanName = engData.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
                 zip.file(`Prequalification_Profile_${synchronizedCleanName}.pdf`, finalPdfBytes);
 
-                // Populate Excel sheet row values array sequence parameters
+                // Push row tracking indices values
                 row.push(companyName, engData.name, engData.nationality, engData.identity, engData.total_yrs, engData.total_mos, engData.ksa_yrs, engData.ksa_mos, engData.contact, engData.status, engData.region, engData.location, engData.remarks);
                 
                 engData.matrix.forEach(item => {
@@ -1181,13 +1149,13 @@
                 excelData.push(row);
             }
 
-            // Write Spreadsheet log file matrix workbook asset
+            // Save Spreadsheet matrix workbook configuration output sheet
             const worksheet = XLSX.utils.aoa_to_sheet(excelData);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Qualifications Tracker Data");
             XLSX.writeFile(workbook, "Engineers_Qualifications_Report.xlsx");
 
-            // Finalize zip compression package compilation download vector
+            // Complete browser pipeline download sequence loops
             const zipContentBlob = await zip.generateAsync({ type: "blob" });
             const zipLinkElement = document.createElement('a');
             zipLinkElement.href = URL.createObjectURL(zipContentBlob);
@@ -1196,14 +1164,14 @@
             zipLinkElement.click();
             document.body.removeChild(zipLinkElement);
 
-            // Trigger mail client fallback intent layout routing
+            // Forward legacy mail triggers tracking signatures
             const emailSubject = encodeURIComponent("Engineers Qualification Tracker Export Submission");
             const emailBody = encodeURIComponent("Hello,\n\nPlease find attached spreadsheet data logs and generated qualification packages.\n\nBest Regards.");
             window.location.href = `mailto:?subject=${emailSubject}&body=${emailBody}`;
             localStorage.removeItem(STORAGE_KEY);
 
         } catch (globalFaultException) {
-            console.error("Batch processing operation failure checklist parameters:", globalFaultException);
+            console.error("Batch processing operation failure parameters:", globalFaultException);
             alert("An error occurred during multi-record compilation execution pipelines. Check browser workspace log.");
         }
     }
