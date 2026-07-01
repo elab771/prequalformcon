@@ -400,12 +400,17 @@
                 <tbody>
                     <tr>
                         <td class="profile-label" style="height: 48px;">Company Name</td>
-                        <td class="yellow-cell"><textarea name="global_company_name" id="global_company_name" class="company-textarea" rows="2" oninput="saveFormState()"></textarea></td>
+                        <td class="yellow-cell">
+                            <select name="global_company_name" id="global_company_name" onchange="saveFormState()">
+                                <option value="">-- Loading Companies List... --</option>
+                            </select>
+                        </td>
                     </tr>
                 </tbody>
             </table>
             <div class="company-note-box">
-                Kindly input the Company Name EXACTLY as written in your Approval Letter or as it is in your submitted Company Name in the Contact Person Update Form
+                1) Kindly select Your Company's Name in the dropdown field provided.<br>
+                2) Please make sure the Engineer's name input is EXACTLY as what is written in his IQAMA/ID.
             </div>
         </div>
     </div>
@@ -600,8 +605,8 @@
                         </td>
                     </tr>
                     <tr>
-                        <td class="profile-label">Identity</td>
-                        <td class="yellow-cell"><input type="text" name="profile_identity[]" oninput="saveFormState()"></td>
+                        <td class="profile-label">Iqama/ID</td>
+                        <td class="yellow-cell"><input type="text" name="profile_identity[]" inputmode="numeric" maxlength="10" oninput="enforceNumericLimit(this); saveFormState()"></td>
                     </tr>
                     <tr>
                         <td class="profile-label">Total Experience</td>
@@ -627,7 +632,7 @@
                     </tr>
                     <tr>
                         <td class="profile-label">Contact No</td>
-                        <td class="yellow-cell"><input type="text" name="profile_contact[]" oninput="saveFormState()"></td>
+                        <td class="yellow-cell"><input type="text" name="profile_contact[]" inputmode="numeric" maxlength="10" oninput="enforceNumericLimit(this); saveFormState()"></td>
                     </tr>
                     <!-- Tooltip condition criteria mapped onto root parent wrapping cells -->
                     <tr title="Please make sure the file you will be uploading here is a merged file of the following IN SEQUENCE:&#10;&#10;1) Previous Approval Form(if available)&#10;2) Iqama or ID&#10;3) Muqeem Information&#10;4) Engineer's CV(should be stamped, updated and brief)&#10;5) PD Certificate from the PD measuring unit manufacturer(see PD certificate conditions)&#10;6) Engineering Accreditation certifications from Saudi council of Engineers(the specialization must be shown) + barcode&#10;7) GOSI(showing your company's name as an employer - for Saudis only)+barcode.">
@@ -807,6 +812,144 @@
 
 <script>
     const STORAGE_KEY = 'engineer_form_persistent_state';
+
+    // ================== CONFIGURATION ==================
+    // TODO: Replace this with the RAW GitHub URL of your uploaded "tccompanieslist.xlsx" file.
+    // Example: https://raw.githubusercontent.com/<your-username>/<your-repo>/<branch>/tccompanieslist.xlsx
+    // NOTE: pointed at the "main" branch (not a specific commit) so that any future edits you
+    // make to tccompanieslist.xlsx are automatically picked up the next time the form loads.
+    // If your repository's default branch is not "main" (e.g. "master"), change it below.
+    const GITHUB_XLSX_URL = "https://raw.githubusercontent.com/elab771/prequalformcon/main/tccompanieslist.xlsx";
+    // Fallback mirror used automatically if raw.githubusercontent.com cannot be reached (some
+    // corporate/ISP networks block that specific domain even though github.com works fine).
+    const JSDELIVR_XLSX_URL = "https://cdn.jsdelivr.net/gh/elab771/prequalformcon@main/tccompanieslist.xlsx";
+    // =====================================================
+
+    // Restricts a text input to digits only, up to a maximum length (used for Iqama/ID and Contact No)
+    function enforceNumericLimit(inputElement, maxLength = 10) {
+        let digitsOnly = inputElement.value.replace(/\D/g, '');
+        if (digitsOnly.length > maxLength) {
+            digitsOnly = digitsOnly.slice(0, maxLength);
+        }
+        inputElement.value = digitsOnly;
+    }
+
+    // Returns the currently selected company's "Company ID" (from the dropdown's data attribute)
+    function getSelectedCompanyId() {
+        const select = document.getElementById('global_company_name');
+        const selectedOption = select.options[select.selectedIndex];
+        return selectedOption ? (selectedOption.dataset.companyId || '') : '';
+    }
+
+    // Formats current date/time as ddmmyyhhmm
+    function getFormattedTimestamp() {
+        const d = new Date();
+        const pad = (n) => n.toString().padStart(2, '0');
+        const dd = pad(d.getDate());
+        const mm = pad(d.getMonth() + 1);
+        const yy = pad(d.getFullYear() % 100);
+        const hh = pad(d.getHours());
+        const min = pad(d.getMinutes());
+        return `${dd}${mm}${yy}${hh}${min}`;
+    }
+
+    // Fetches tccompanieslist.xlsx from GitHub, reads the "ActiveCompanies" sheet in full
+    // (dynamically, so any newly added rows are automatically picked up), and populates the
+    // Company Name dropdown with Company Name (visible) / Company ID + Voltage Level (data attributes).
+    async function loadCompaniesList() {
+        const select = document.getElementById('global_company_name');
+        try {
+            const candidateUrls = [GITHUB_XLSX_URL, JSDELIVR_XLSX_URL];
+            let buffer = null;
+            let lastError = null;
+
+            for (const baseUrl of candidateUrls) {
+                try {
+                    const cacheBustedUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + '_=' + Date.now();
+                    const response = await fetch(cacheBustedUrl);
+                    if (!response.ok) {
+                        throw new Error('HTTP ' + response.status + ' from ' + baseUrl);
+                    }
+                    buffer = await response.arrayBuffer();
+                    break; // success — stop trying further mirrors
+                } catch (attemptErr) {
+                    console.warn('Companies list fetch failed for', baseUrl, attemptErr);
+                    lastError = attemptErr;
+                }
+            }
+
+            if (!buffer) {
+                throw new Error(
+                    'Could not reach either source for the companies list (GitHub raw or jsDelivr mirror). ' +
+                    'This is usually a network/firewall block rather than a problem with the file itself. ' +
+                    (lastError ? 'Last error: ' + lastError.message : '')
+                );
+            }
+
+            const workbook = XLSX.read(buffer, { type: 'array' });
+
+            const sheetName = 'ActiveCompanies';
+            const sheet = workbook.Sheets[sheetName];
+            if (!sheet) {
+                throw new Error('Sheet "' + sheetName + '" was not found in tccompanieslist.xlsx.');
+            }
+
+            // No fixed range is passed here on purpose — sheet_to_json reads the sheet's full
+            // current used range every time, so newly added rows (new Company Name, Company ID,
+            // Voltage Level) are captured automatically the next time the form is loaded.
+            const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+            if (!rows || rows.length < 2) {
+                throw new Error('The "ActiveCompanies" sheet appears to be empty.');
+            }
+
+            const headerRow = rows[0].map(h => (h || '').toString().trim().toLowerCase());
+            const nameColIdx = headerRow.indexOf('company name');
+            const idColIdx = headerRow.indexOf('company id');
+            const voltageColIdx = headerRow.indexOf('voltage level');
+            if (nameColIdx === -1 || idColIdx === -1) {
+                throw new Error('Could not find "Company Name" and "Company ID" columns in the "ActiveCompanies" sheet.');
+            }
+
+            select.innerHTML = '';
+            const blankOption = document.createElement('option');
+            blankOption.value = '';
+            blankOption.textContent = '-- Select Company --';
+            select.appendChild(blankOption);
+
+            for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+                const companyName = (row[nameColIdx] || '').toString().trim();
+                const companyId = (row[idColIdx] || '').toString().trim();
+                if (!companyName) continue;
+
+                const opt = document.createElement('option');
+                opt.value = companyName;
+                opt.dataset.companyId = companyId;
+                if (voltageColIdx !== -1) {
+                    opt.dataset.voltageLevel = (row[voltageColIdx] || '').toString().trim();
+                }
+                opt.textContent = companyName;
+                select.appendChild(opt);
+            }
+
+            // Reapply any previously saved selection now that the list is populated
+            const rawState = localStorage.getItem(STORAGE_KEY);
+            if (rawState) {
+                try {
+                    const parsedState = JSON.parse(rawState);
+                    if (parsedState && parsedState.companyName) {
+                        select.value = parsedState.companyName;
+                    }
+                } catch (e) { /* ignore */ }
+            }
+
+        } catch (err) {
+            console.error('Failed to load Companies List:', err);
+            select.innerHTML = '<option value="">-- Unable to load Companies List --</option>';
+            alert('Unable to load the Companies List dropdown.\n\n' + err.message + '\n\nIf this keeps happening, check that this device/network can reach raw.githubusercontent.com and cdn.jsdelivr.net (some corporate firewalls block one or both).');
+        }
+    }
 
     // Intercept rule to display text verification modal before opening standard folder browsers
     function triggerSequenceVerificationPrompt(event) {
@@ -1046,42 +1189,66 @@
         });
     }
 
+    // Validates that all yellow-highlighted required fields are filled in for every engineer
+    // record (Name, Nationality, Iqama/ID, Total Experience, Experience in KSA, Contact No,
+    // Credentials Attachment), plus the global Company Name dropdown. Returns true if valid.
+    function validateRequiredYellowFields(records) {
+        const companySelect = document.getElementById('global_company_name');
+        if (!companySelect.value) {
+            alert('Please select the Company Name from the dropdown before submitting.');
+            companySelect.focus();
+            return false;
+        }
+
+        for (let i = 0; i < records.length; i++) {
+            const record = records[i];
+            const recordNum = i + 1;
+
+            const fieldsToCheck = [
+                { selector: '[name="profile_name[]"]', label: 'Name' },
+                { selector: '[name="profile_nationality[]"]', label: 'Nationality' },
+                { selector: '[name="profile_identity[]"]', label: 'Iqama/ID' },
+                { selector: '[name="profile_total_exp_yrs[]"]', label: 'Total Experience (Yrs)' },
+                { selector: '[name="profile_total_exp_mos[]"]', label: 'Total Experience (Mos)' },
+                { selector: '[name="profile_ksa_exp_yrs[]"]', label: 'Experience in KSA (Yrs)' },
+                { selector: '[name="profile_ksa_exp_mos[]"]', label: 'Experience in KSA (Mos)' },
+                { selector: '[name="profile_contact[]"]', label: 'Contact No' }
+            ];
+
+            for (const field of fieldsToCheck) {
+                const el = record.querySelector(field.selector);
+                if (!el || el.value.toString().trim() === '') {
+                    alert(`Engineer Record #${recordNum}: Please fill up the required "${field.label}" field before submitting.`);
+                    if (el) el.focus();
+                    return false;
+                }
+            }
+
+            const credentialsInput = record.querySelector('[name="profile_credentials[]"]');
+            if (!credentialsInput || !credentialsInput.files || credentialsInput.files.length === 0) {
+                alert(`Engineer Record #${recordNum}: Please attach the required "Credentials Attachment" file before submitting.`);
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     async function handleFormSubmission(event) {
         event.preventDefault();
 
         const records = document.querySelectorAll('#engineers-container .engineer-record');
         if (records.length === 0) return;
 
+        if (!validateRequiredYellowFields(records)) {
+            return;
+        }
+
         const companyName = document.getElementById('global_company_name').value;
+        const companyId = getSelectedCompanyId();
 
-        // Structured configuration array for spreadsheet headers matching current adjustments
-        const headers = [
-            "Company Name", "Engineer Name", "Nationality", "Identity", "Total Exp Yrs", "Total Exp Mos", 
-            "KSA Exp Yrs", "KSA Exp Mos", "Contact No", "Status", "Region", "Location", "Remarks",
-            "Batteries & Chargers", "ACDB & DCDB", "Aux. / Trip Relays & MCCB", "Meters",
-            "Power Transformer (MV)", "Power Transformer (HV)", "Power Transformer (EHV)",
-            "Shunt Reactor (MV)", "Shunt Reactor (HV)", "Shunt Reactor (EHV)",
-            "Capacitor (MV)", "Capacitor (HV)", "Capacitor (EHV)", "OHTL",
-            "Power Cable Electrical Tests (MV)", "Power Cable Electrical Tests (HV)", "Power Cable Electrical Tests (EHV)",
-            "Power Cable HV Test (MV)", "Power Cable HV Test (HV)", "Power Cable HV Test (EHV)",
-            "Power Cable PD Test (MV)", "Power Cable PD Test (HV)", "Power Cable PD Test (EHV)",
-            "Switchgear Equipment (MV)", "Switchgear Equipment (HV)", "Switchgear Equipment (EHV)",
-            "Switchgear HV Test (MV)", "Switchgear HV Test (HV)", "Switchgear HV Test (EHV)",
-            "Switchgear PD Test (MV)", "Switchgear PD Test (HV)", "Switchgear PD Test (EHV)",
-            "Scheme Check (MV)", "Scheme Check (HV)", "Scheme Check (EHV)",
-            "CT Primary & Secondary Injection (MV)", "CT Primary & Secondary Injection (HV)", "CT Primary & Secondary Injection (EHV)",
-            "VT Secondary Injection (MV)", "VT Secondary Injection (HV)", "VT Secondary Injection (EHV)",
-            "Simple Protection Relays (MV)", "Simple Protection Relays (HV)", "Simple Protection Relays (EHV)",
-            "Advanced Protection & Control IEDs (MV)", "Advanced Protection & Control IEDs (HV)", "Advanced Protection & Control IEDs (EHV)",
-            "Stability Test (MV)", "Stability Test (HV)", "Stability Test (EHV)",
-            "End To End Test (HV)", "End To End Test (EHV)",
-            "Final Trip Test (MV)", "Final Trip Test (HV)", "Final Trip Test (EHV)",
-            "Live Substations", "Site Coordinator (HV)", "Site Coordinator (EHV)"
-        ];
-
-        const excelData = [headers];
         const zip = new JSZip();
-        
+
         try {
             const response = await fetch('prequalform.pdf');
             if (!response.ok) {
@@ -1090,7 +1257,6 @@
             const templateBytes = await response.arrayBuffer();
 
             for (let record of records) {
-                const row = [];
                 const credentialsInput = record.querySelector('[name="profile_credentials[]"]');
 
                 const engData = {
@@ -1192,38 +1358,46 @@
 
                 // Close files stream output layer matrix blocks
                 const finalPdfBytes = await mergedPdf.save();
-                const synchronizedCleanName = engData.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                zip.file(`Prequalification_Profile_${synchronizedCleanName}.pdf`, finalPdfBytes);
 
-                // Push row tracking indices values
-                row.push(companyName, engData.name, engData.nationality, engData.identity, engData.total_yrs, engData.total_mos, engData.ksa_yrs, engData.ksa_mos, engData.contact, engData.status, engData.region, engData.location, engData.remarks);
-                
-                engData.matrix.forEach(item => {
-                    row.push(item.value);
-                });
-
-                excelData.push(row);
+                // Filename format: {Company ID}_{Iqama No}_prequalrequest.pdf
+                const safeIqama = (engData.identity || 'noiqama').replace(/[^a-z0-9]/gi, '_');
+                const safeCompanyId = (companyId || 'nocompanyid').replace(/[^a-z0-9]/gi, '_');
+                const pdfFileName = `${safeCompanyId}_${safeIqama}_prequalrequest.pdf`;
+                zip.file(pdfFileName, finalPdfBytes);
             }
 
-            // Save Spreadsheet matrix workbook configuration output sheet
-            const worksheet = XLSX.utils.aoa_to_sheet(excelData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Qualifications Tracker Data");
-            XLSX.writeFile(workbook, "Engineers_Qualifications_Report.xlsx");
+            // Zip filename format: {Company ID}_prequalrequest{ddmmyyhhmm}
+            const timestamp = getFormattedTimestamp();
+            const safeCompanyId = (companyId || 'nocompanyid').replace(/[^a-z0-9]/gi, '_');
+            const zipFileName = `${safeCompanyId}_prequalrequest${timestamp}.zip`;
 
             // Complete browser pipeline download sequence loops
             const zipContentBlob = await zip.generateAsync({ type: "blob" });
             const zipLinkElement = document.createElement('a');
             zipLinkElement.href = URL.createObjectURL(zipContentBlob);
-            zipLinkElement.download = "Engineers_Prequalification_Forms.zip";
+            zipLinkElement.download = zipFileName;
             document.body.appendChild(zipLinkElement);
             zipLinkElement.click();
             document.body.removeChild(zipLinkElement);
 
-            // Forward legacy mail triggers tracking signatures
-            const emailSubject = encodeURIComponent("Engineers Qualification Tracker Export Submission");
-            const emailBody = encodeURIComponent("Hello,\n\nPlease find attached spreadsheet data logs and generated qualification packages.\n\nBest Regards.");
-            window.location.href = `mailto:?subject=${emailSubject}&body=${emailBody}`;
+            // Browsers cannot detect whether a Microsoft Exchange/Outlook account is configured
+            // on the user's system, so we ask the user to confirm before attempting to open a
+            // mail draft. If they say no (or don't have one configured), skip the mailto step
+            // and simply let them know the zip is ready to attach manually.
+            const hasEmailConfigured = confirm(
+                "Do you have an email account (e.g. Microsoft Outlook/Exchange) configured on this " +
+                "computer that can be used to send this submission?\n\n" +
+                "Click OK to open a new email draft now, or Cancel if you don't have one configured."
+            );
+
+            if (hasEmailConfigured) {
+                const emailSubject = encodeURIComponent("Engineers Qualification Tracker Export Submission");
+                const emailBody = encodeURIComponent("Hello,\n\nPlease find attached the generated qualification packages (" + zipFileName + ").\n\nBest Regards.");
+                window.location.href = `mailto:?subject=${emailSubject}&body=${emailBody}`;
+            } else {
+                alert(`No email account was configured, so the email draft was not generated.\n\nThe zipped file "${zipFileName}" has been downloaded and is ready for you to copy and attach to an email manually.`);
+            }
+
             localStorage.removeItem(STORAGE_KEY);
 
         } catch (globalFaultException) {
@@ -1232,7 +1406,8 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', async function() {
+        await loadCompaniesList();
         loadFormState();
     });
 </script>
