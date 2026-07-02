@@ -12,7 +12,7 @@
             color: #000000;
         }
 
-        /* Top Layout Container for Header and Company Block */
+        /* Top Layout Container for Header */
         .top-container {
             width: 1770px;
             margin-bottom: 20px;
@@ -25,45 +25,6 @@
             align-items: center;
             margin-bottom: 15px;
             width: 100%; 
-        }
-
-        /* Company Name Block Section */
-        .company-block {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            width: 100%;
-            margin-bottom: 15px;
-        }
-
-        .company-table {
-            width: 620px;
-            flex-shrink: 0;
-            border-collapse: collapse;
-        }
-
-        .company-textarea {
-            width: 100%;
-            height: 42px;
-            border: none;
-            background: transparent;
-            outline: none;
-            font-size: 12px;
-            font-family: Arial, sans-serif;
-            resize: none;
-            box-sizing: border-box;
-            padding: 4px 0;
-            display: block;
-            line-height: 1.2;
-        }
-
-        .company-note-box {
-            font-size: 11px;
-            line-height: 1.4;
-            color: #d32f2f;
-            font-weight: bold;
-            flex-grow: 1;
-            max-width: 1375px;
         }
 
         .header-actions {
@@ -117,7 +78,9 @@
             background-color: #bd2130;
         }
 
-        /* Master row alignment across columns */
+        /* Master row alignment across columns - profile section and qualifications table
+           are flex siblings with align-items: flex-start, so they always share the same
+           top edge (i.e. stay horizontally aligned on the same row) automatically. */
         .master-layout-row {
             display: flex;
             flex-direction: row;
@@ -126,21 +89,28 @@
             width: 100%;
         }
 
-        /* Enforced grid size area width alignment matching sum of grid elements */
+        /* Enforced grid size area width alignment matching sum of grid elements.
+           align-self: stretch makes this wrapper match the profile-table's full height
+           (the tallest sibling in .master-layout-row), so the Status/Region/Location/
+           Remarks row below can be anchored to the bottom of that shared height instead
+           of overlapping the qualifications table's own last row. */
         .qualifications-layout-wrapper {
             display: flex;
             flex-direction: column;
             width: 1375px; 
             flex-shrink: 0;
+            align-self: stretch;
         }
 
-        /* Lower split structure aligned right next to profile line bounds */
+        /* Lower split structure: pinned to the bottom of the stretched wrapper via
+           margin-top: auto, so it lines up with the last row of the engineer profile
+           section without ever overlapping the qualifications table's last row. */
         .inline-revisions-container {
             display: flex;
             flex-direction: row;
-            align-items: flex-start;
+            align-items: flex-end;
             width: 100%;
-            margin-top: 10px; 
+            margin-top: auto;
         }
 
         table {
@@ -278,10 +248,18 @@
             font-size: 12px;
             cursor: pointer;
         }
+
+        /* Company Name select inside the engineer profile table: allowed to wrap onto
+           up to 3 lines so a long selected company name stays fully readable instead
+           of being clipped to a single line. */
         .company-select {
             white-space: normal;
             line-height: 1.3;
             padding: 4px 0;
+            overflow: visible;
+        }
+        .company-field-row {
+            height: 64px;
         }
         
         .file-wrapper {
@@ -398,25 +376,6 @@
                 <button type="submit" class="btn btn-submit">Submit Rows</button>
             </div>
         </div>
-        
-        <div class="company-block">
-            <table class="company-table">
-                <tbody>
-                    <tr>
-                        <td class="profile-label" style="height: 56px;">Company Name</td>
-                        <td class="yellow-cell" style="height: 56px;">
-                            <select name="global_company_name" id="global_company_name" class="company-select" onchange="saveFormState()">
-                                <option value="">-- Loading Companies List... --</option>
-                            </select>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-            <div class="company-note-box">
-                1) Kindly select Your Company's Name in the dropdown field provided.<br>
-                2) (Please make sure the Engineer's name input is EXACTLY as what is written in his IQAMA/ID.)
-            </div>
-        </div>
     </div>
     
     <div id="engineers-container">
@@ -429,9 +388,17 @@
         <div class="master-layout-row">
             <table class="profile-table">
                 <tbody>
-                    <tr style="height: 60px;">
-                        <td class="profile-label">Engineer Name</td>
-                        <td class="yellow-cell"><textarea name="profile_name[]" class="name-textarea" rows="3" oninput="saveFormState()"></textarea></td>
+                    <tr class="company-field-row">
+                        <td class="profile-label">Company Name</td>
+                        <td class="yellow-cell">
+                            <select name="profile_company[]" class="company-select" onchange="saveFormState()">
+                                <option value="">-- Loading Companies List... --</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr style="height: 42px;">
+                        <td class="profile-label">Engineer's Name <span style="color: #d32f2f;">(as per IQAMA/ID)</span></td>
+                        <td class="yellow-cell"><textarea name="profile_name[]" class="name-textarea" rows="2" oninput="saveFormState()"></textarea></td>
                     </tr>
                     <tr>
                         <td class="profile-label">Nationality</td>
@@ -821,6 +788,11 @@
     const COMPANIES_LIST_PAGE = "companieslist.html";
     // =====================================================
 
+    // Holds the parsed { name, id, voltage } rows fetched from companieslist.html so that every
+    // per-engineer Company Name dropdown (including ones added later via "Add Another Engineer")
+    // can be populated from the same in-memory source without re-fetching.
+    let companiesData = null;
+
     // Restricts a text input to digits only, up to a maximum length (used for Iqama/ID and Contact No)
     function enforceNumericLimit(inputElement, maxLength = 10) {
         let digitsOnly = inputElement.value.replace(/\D/g, '');
@@ -830,9 +802,10 @@
         inputElement.value = digitsOnly;
     }
 
-    // Returns the currently selected company's "Company ID" (from the dropdown's data attribute)
-    function getSelectedCompanyId() {
-        const select = document.getElementById('global_company_name');
+    // Returns the currently selected company's "Company ID" (from that record's dropdown data attribute)
+    function getSelectedCompanyId(record) {
+        const select = record.querySelector('[name="profile_company[]"]');
+        if (!select) return '';
         const selectedOption = select.options[select.selectedIndex];
         return selectedOption ? (selectedOption.dataset.companyId || '') : '';
     }
@@ -850,11 +823,10 @@
     }
 
     // Fetches companieslist.html (same folder, same origin as this form) and reads the
-    // #companiesTable table inside it — dynamically, so any rows added/edited/removed later are
-    // automatically picked up the next time this form loads. Populates the Company Name dropdown
-    // with Company Name (visible) / Company ID + Voltage Level (data attributes).
+    // #companiesTable table inside it into the in-memory companiesData array. Does not touch the
+    // DOM directly — each per-engineer Company Name select is populated separately via
+    // populateCompanySelect() so newly added engineer records can be filled on demand.
     async function loadCompaniesList() {
-        const select = document.getElementById('global_company_name');
         try {
             const cacheBustedUrl = COMPANIES_LIST_PAGE + '?_=' + Date.now();
             const response = await fetch(cacheBustedUrl);
@@ -883,43 +855,46 @@
                 throw new Error('The companiesTable in ' + COMPANIES_LIST_PAGE + ' has no data rows.');
             }
 
-            select.innerHTML = '';
-            const blankOption = document.createElement('option');
-            blankOption.value = '';
-            blankOption.textContent = '-- Select Company --';
-            select.appendChild(blankOption);
-
-            bodyRows.forEach(tr => {
+            companiesData = bodyRows.map(tr => {
                 const cells = Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim());
-                const companyName = cells[nameColIdx] || '';
-                const companyId = cells[idColIdx] || '';
-                if (!companyName) return;
-
-                const opt = document.createElement('option');
-                opt.value = companyName;
-                opt.dataset.companyId = companyId;
-                if (voltageColIdx !== -1) {
-                    opt.dataset.voltageLevel = cells[voltageColIdx] || '';
-                }
-                opt.textContent = companyName;
-                select.appendChild(opt);
-            });
-
-            // Reapply any previously saved selection now that the list is populated
-            const rawState = localStorage.getItem(STORAGE_KEY);
-            if (rawState) {
-                try {
-                    const parsedState = JSON.parse(rawState);
-                    if (parsedState && parsedState.companyName) {
-                        select.value = parsedState.companyName;
-                    }
-                } catch (e) { /* ignore */ }
-            }
+                return {
+                    name: cells[nameColIdx] || '',
+                    id: cells[idColIdx] || '',
+                    voltage: voltageColIdx !== -1 ? (cells[voltageColIdx] || '') : ''
+                };
+            }).filter(c => c.name);
 
         } catch (err) {
             console.error('Failed to load Companies List:', err);
-            select.innerHTML = '<option value="">-- Unable to load Companies List --</option>';
+            companiesData = null;
             alert('Unable to load the Companies List dropdown.\n\n' + err.message + '\n\nMake sure "companieslist.html" is uploaded in the exact same folder as this form file.');
+        }
+    }
+
+    // Fills a single Company Name <select> element with the options built from companiesData.
+    function populateCompanySelect(selectElement) {
+        if (!selectElement) return;
+        const previousValue = selectElement.value;
+        selectElement.innerHTML = '';
+
+        const blankOption = document.createElement('option');
+        blankOption.value = '';
+        blankOption.textContent = companiesData ? '-- Select Company --' : '-- Unable to load Companies List --';
+        selectElement.appendChild(blankOption);
+
+        if (companiesData) {
+            companiesData.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.name;
+                opt.dataset.companyId = c.id;
+                opt.dataset.voltageLevel = c.voltage || '';
+                opt.textContent = c.name;
+                selectElement.appendChild(opt);
+            });
+        }
+
+        if (previousValue) {
+            selectElement.value = previousValue;
         }
     }
 
@@ -974,6 +949,10 @@
         const templateNode = document.querySelector('#record-template .engineer-record');
         const newRecord = templateNode.cloneNode(true);
 
+        // Populate this record's own Company Name dropdown before applying any saved values,
+        // so a saved company selection has a matching <option> to select.
+        populateCompanySelect(newRecord.querySelector('[name="profile_company[]"]'));
+
         if (savedData) {
             newRecord.querySelectorAll('input[type="text"], textarea').forEach((el, index) => {
                 if (savedData.texts && savedData.texts[index] !== undefined) el.value = savedData.texts[index];
@@ -1012,7 +991,6 @@
     function saveFormState() {
         const records = document.querySelectorAll('#engineers-container .engineer-record');
         const state = [];
-        const companyName = document.getElementById('global_company_name').value;
 
         records.forEach(record => {
             const texts = [];
@@ -1024,7 +1002,7 @@
             state.push({ texts, selects });
         });
 
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ companyName, records: state }));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ records: state }));
     }
 
     function loadFormState() {
@@ -1035,14 +1013,9 @@
         if (rawState) {
             try {
                 const parsedState = JSON.parse(rawState);
-                if (parsedState) {
-                    if (parsedState.companyName !== undefined) {
-                        document.getElementById('global_company_name').value = parsedState.companyName;
-                    }
-                    if (parsedState.records && parsedState.records.length > 0) {
-                        parsedState.records.forEach(recordData => addNewEngineer(recordData));
-                        return;
-                    }
+                if (parsedState && parsedState.records && parsedState.records.length > 0) {
+                    parsedState.records.forEach(recordData => addNewEngineer(recordData));
+                    return;
                 }
             } catch (e) {
                 console.error("Failed to parse local form persistence state", e);
@@ -1054,7 +1027,6 @@
     function confirmResetForm() {
         const message = "Are you sure you want to completely clear the rows and reset the entry form?\nAll unsubmitted input details will be lost permanently.";
         if (confirm(message)) {
-            document.getElementById('global_company_name').value = '';
             localStorage.removeItem(STORAGE_KEY);
             loadFormState();
         }
@@ -1162,22 +1134,16 @@
     }
 
     // Validates that all yellow-highlighted required fields are filled in for every engineer
-    // record (Name, Nationality, Iqama/ID, Total Experience, Experience in KSA, Contact No,
-    // Credentials Attachment), plus the global Company Name dropdown. Returns true if valid.
+    // record (Company Name, Name, Nationality, Iqama/ID, Total Experience, Experience in KSA,
+    // Contact No, Credentials Attachment). Returns true if valid.
     function validateRequiredYellowFields(records) {
-        const companySelect = document.getElementById('global_company_name');
-        if (!companySelect.value) {
-            alert('Please select the Company Name from the dropdown before submitting.');
-            companySelect.focus();
-            return false;
-        }
-
         for (let i = 0; i < records.length; i++) {
             const record = records[i];
             const recordNum = i + 1;
 
             const fieldsToCheck = [
-                { selector: '[name="profile_name[]"]', label: 'Engineer Name' },
+                { selector: '[name="profile_company[]"]', label: 'Company Name' },
+                { selector: '[name="profile_name[]"]', label: "Engineer's Name" },
                 { selector: '[name="profile_nationality[]"]', label: 'Nationality' },
                 { selector: '[name="profile_identity[]"]', label: 'Iqama/ID' },
                 { selector: '[name="profile_total_exp_yrs[]"]', label: 'Total Experience (Yrs)' },
@@ -1216,9 +1182,6 @@
             return;
         }
 
-        const companyName = document.getElementById('global_company_name').value;
-        const companyId = getSelectedCompanyId();
-
         const zip = new JSZip();
 
         try {
@@ -1230,6 +1193,8 @@
 
             for (let record of records) {
                 const credentialsInput = record.querySelector('[name="profile_credentials[]"]');
+                const companyName = record.querySelector('[name="profile_company[]"]').value;
+                const companyId = getSelectedCompanyId(record);
 
                 const engData = {
                     name: record.querySelector('[name="profile_name[]"]').value,
@@ -1339,8 +1304,11 @@
             }
 
             // Zip filename format: {Company ID}_prequalrequest{ddmmyyhhmm}
+            // Since Company Name is now selected per engineer, the first engineer record's
+            // company is used to label the overall zip file.
+            const firstRecordCompanyId = getSelectedCompanyId(records[0]);
             const timestamp = getFormattedTimestamp();
-            const safeCompanyId = (companyId || 'nocompanyid').replace(/[^a-z0-9]/gi, '_');
+            const safeCompanyId = (firstRecordCompanyId || 'nocompanyid').replace(/[^a-z0-9]/gi, '_');
             const zipFileName = `${safeCompanyId}_prequalrequest${timestamp}.zip`;
 
             // Complete browser pipeline download sequence loops
@@ -1352,14 +1320,17 @@
             zipLinkElement.click();
             document.body.removeChild(zipLinkElement);
 
-            // Browsers cannot detect whether a Microsoft Exchange/Outlook account is configured
-            // on the user's system, so we ask the user to confirm before attempting to open a
-            // mail draft. If they say no (or don't have one configured), skip the mailto step
-            // and simply let them know the zip is ready to attach manually.
+            // Browsers cannot force a mailto: link to open in one specific application — it
+            // always opens whichever app is set as the operating system's default mail handler.
+            // We ask the user to confirm Outlook is that default before attempting to open a
+            // draft. If they say no, skip the mailto step and let them know the zip is ready to
+            // attach manually.
             const hasEmailConfigured = confirm(
-                "Do you have an email account (e.g. Microsoft Outlook/Exchange) configured on this " +
-                "computer that can be used to send this submission?\n\n" +
-                "Click OK to open a new email draft now, or Cancel if you don't have one configured."
+                "Do you have Microsoft Outlook (classic or new) set as the default email application " +
+                "on this computer?\n\n" +
+                "Click OK to open a new Outlook email draft now, or Cancel if Outlook is not set as " +
+                "your default mail app (this submission will use whatever app is set as default, " +
+                "e.g. the Windows Mail app or Apple Mail, if Outlook is not configured as default)."
             );
 
             if (hasEmailConfigured) {
@@ -1367,7 +1338,7 @@
                 const emailBody = encodeURIComponent("Hello,\n\nPlease find attached the generated qualification packages (" + zipFileName + ").\n\nBest Regards.");
                 window.location.href = `mailto:?subject=${emailSubject}&body=${emailBody}`;
             } else {
-                alert(`No email account was configured, so the email draft was not generated.\n\nThe zipped file "${zipFileName}" has been downloaded and is ready for you to copy and attach to an email manually.`);
+                alert(`No email draft was generated.\n\nThe zipped file "${zipFileName}" has been downloaded and is ready for you to copy and attach to an Outlook email manually.\n\nTip: to have this button open Outlook automatically next time, set Microsoft Outlook (classic or new) as your default mail app in your operating system's settings.`);
             }
 
             localStorage.removeItem(STORAGE_KEY);
