@@ -37,7 +37,7 @@
         }
 
         .company-table {
-            width: 380px;
+            width: 620px;
             flex-shrink: 0;
             border-collapse: collapse;
         }
@@ -278,6 +278,11 @@
             font-size: 12px;
             cursor: pointer;
         }
+        .company-select {
+            white-space: normal;
+            line-height: 1.3;
+            padding: 4px 0;
+        }
         
         .file-wrapper {
             display: flex;
@@ -398,9 +403,9 @@
             <table class="company-table">
                 <tbody>
                     <tr>
-                        <td class="profile-label" style="height: 48px;">Company Name</td>
-                        <td class="yellow-cell">
-                            <select name="global_company_name" id="global_company_name" onchange="saveFormState()">
+                        <td class="profile-label" style="height: 56px;">Company Name</td>
+                        <td class="yellow-cell" style="height: 56px;">
+                            <select name="global_company_name" id="global_company_name" class="company-select" onchange="saveFormState()">
                                 <option value="">-- Loading Companies List... --</option>
                             </select>
                         </td>
@@ -409,7 +414,7 @@
             </table>
             <div class="company-note-box">
                 1) Kindly select Your Company's Name in the dropdown field provided.<br>
-                2) Please make sure the Engineer's name input is EXACTLY as what is written in his IQAMA/ID.
+                2) (Please make sure the Engineer's name input is EXACTLY as what is written in his IQAMA/ID.)
             </div>
         </div>
     </div>
@@ -423,15 +428,10 @@
         <button type="button" class="btn-remove-record" onclick="removeEngineerRecord(this)">Remove</button>
         <div class="master-layout-row">
             <table class="profile-table">
-                <thead>
-                    <tr>
-                        <th colspan="2">Engineer's Profile</th>
-                    </tr>
-                </thead>
                 <tbody>
-                    <tr style="height: 42px;">
-                        <td class="profile-label">Name</td>
-                        <td class="yellow-cell"><textarea name="profile_name[]" class="name-textarea" rows="2" oninput="saveFormState()"></textarea></td>
+                    <tr style="height: 60px;">
+                        <td class="profile-label">Engineer Name</td>
+                        <td class="yellow-cell"><textarea name="profile_name[]" class="name-textarea" rows="3" oninput="saveFormState()"></textarea></td>
                     </tr>
                     <tr>
                         <td class="profile-label">Nationality</td>
@@ -1177,7 +1177,7 @@
             const recordNum = i + 1;
 
             const fieldsToCheck = [
-                { selector: '[name="profile_name[]"]', label: 'Name' },
+                { selector: '[name="profile_name[]"]', label: 'Engineer Name' },
                 { selector: '[name="profile_nationality[]"]', label: 'Nationality' },
                 { selector: '[name="profile_identity[]"]', label: 'Iqama/ID' },
                 { selector: '[name="profile_total_exp_yrs[]"]', label: 'Total Experience (Yrs)' },
