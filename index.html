@@ -1320,26 +1320,17 @@
             zipLinkElement.click();
             document.body.removeChild(zipLinkElement);
 
-            // Browsers cannot force a mailto: link to open in one specific application — it
-            // always opens whichever app is set as the operating system's default mail handler.
-            // We ask the user to confirm Outlook is that default before attempting to open a
-            // draft. If they say no, skip the mailto step and let them know the zip is ready to
-            // attach manually.
-            const hasEmailConfigured = confirm(
-                "Do you have Microsoft Outlook (classic or new) set as the default email application " +
-                "on this computer?\n\n" +
-                "Click OK to open a new Outlook email draft now, or Cancel if Outlook is not set as " +
-                "your default mail app (this submission will use whatever app is set as default, " +
-                "e.g. the Windows Mail app or Apple Mail, if Outlook is not configured as default)."
-            );
+            // A webpage cannot detect which mail app (Outlook, Mail, Thunderbird, etc.) or which
+            // account is configured on the user's PC — that information isn't exposed to the
+            // browser. So instead of asking the user to confirm Outlook is their default first,
+            // we always try to open a mail draft via mailto: (it opens whatever the OS has set
+            // as default) and always leave the zip downloaded either way, so the file is ready
+            // to attach manually if the draft didn't open where expected.
+            const emailSubject = encodeURIComponent("Engineers Qualification Tracker Export Submission");
+            const emailBody = encodeURIComponent("Hello,\n\nPlease find attached the generated qualification packages (" + zipFileName + ").\n\nBest Regards.");
+            window.location.href = `mailto:?subject=${emailSubject}&body=${emailBody}`;
 
-            if (hasEmailConfigured) {
-                const emailSubject = encodeURIComponent("Engineers Qualification Tracker Export Submission");
-                const emailBody = encodeURIComponent("Hello,\n\nPlease find attached the generated qualification packages (" + zipFileName + ").\n\nBest Regards.");
-                window.location.href = `mailto:?subject=${emailSubject}&body=${emailBody}`;
-            } else {
-                alert(`No email draft was generated.\n\nThe zipped file "${zipFileName}" has been downloaded and is ready for you to copy and attach to an Outlook email manually.\n\nTip: to have this button open Outlook automatically next time, set Microsoft Outlook (classic or new) as your default mail app in your operating system's settings.`);
-            }
+            alert(`The zipped file "${zipFileName}" has been downloaded, and an email draft was requested from your computer's default mail app.\n\nIf a draft window didn't open, or opened in the wrong app (e.g. Mail instead of Outlook), the zip is still ready in your Downloads folder to attach manually.`);
 
             localStorage.removeItem(STORAGE_KEY);
 
