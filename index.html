@@ -376,8 +376,7 @@
             background-color: #218838;
         }
     </style>
-    <!-- Dependencies Libraries for spreadsheet calculations, template filling, and compression framework -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Dependencies Libraries for PDF template filling and zip compression -->
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
@@ -814,15 +813,12 @@
     const STORAGE_KEY = 'engineer_form_persistent_state';
 
     // ================== CONFIGURATION ==================
-    // TODO: Replace this with the RAW GitHub URL of your uploaded "tccompanieslist.xlsx" file.
-    // Example: https://raw.githubusercontent.com/<your-username>/<your-repo>/<branch>/tccompanieslist.xlsx
-    // NOTE: pointed at the "main" branch (not a specific commit) so that any future edits you
-    // make to tccompanieslist.xlsx are automatically picked up the next time the form loads.
-    // If your repository's default branch is not "main" (e.g. "master"), change it below.
-    const GITHUB_XLSX_URL = "https://raw.githubusercontent.com/elab771/prequalformcon/main/tccompanieslist.xlsx";
-    // Fallback mirror used automatically if raw.githubusercontent.com cannot be reached (some
-    // corporate/ISP networks block that specific domain even though github.com works fine).
-    const JSDELIVR_XLSX_URL = "https://cdn.jsdelivr.net/gh/elab771/prequalformcon@main/tccompanieslist.xlsx";
+    // The companies list is read from a dedicated data page, "companieslist.html", which must be
+    // hosted in the SAME FOLDER as this form. Because it's fetched from the same origin (not
+    // GitHub or any external CDN), this avoids the network/firewall blocks that external raw
+    // file hosts can run into on restrictive networks. Edit companieslist.html directly whenever
+    // the companies list changes — this form re-reads it fresh every time it loads.
+    const COMPANIES_LIST_PAGE = "companieslist.html";
     // =====================================================
 
     // Restricts a text input to digits only, up to a maximum length (used for Iqama/ID and Contact No)
@@ -853,62 +849,38 @@
         return `${dd}${mm}${yy}${hh}${min}`;
     }
 
-    // Fetches tccompanieslist.xlsx from GitHub, reads the "ActiveCompanies" sheet in full
-    // (dynamically, so any newly added rows are automatically picked up), and populates the
-    // Company Name dropdown with Company Name (visible) / Company ID + Voltage Level (data attributes).
+    // Fetches companieslist.html (same folder, same origin as this form) and reads the
+    // #companiesTable table inside it — dynamically, so any rows added/edited/removed later are
+    // automatically picked up the next time this form loads. Populates the Company Name dropdown
+    // with Company Name (visible) / Company ID + Voltage Level (data attributes).
     async function loadCompaniesList() {
         const select = document.getElementById('global_company_name');
         try {
-            const candidateUrls = [GITHUB_XLSX_URL, JSDELIVR_XLSX_URL];
-            let buffer = null;
-            let lastError = null;
+            const cacheBustedUrl = COMPANIES_LIST_PAGE + '?_=' + Date.now();
+            const response = await fetch(cacheBustedUrl);
+            if (!response.ok) {
+                throw new Error('Could not fetch "' + COMPANIES_LIST_PAGE + '" (HTTP ' + response.status + '). Make sure it is uploaded in the same folder as this form.');
+            }
+            const htmlText = await response.text();
 
-            for (const baseUrl of candidateUrls) {
-                try {
-                    const cacheBustedUrl = baseUrl + (baseUrl.includes('?') ? '&' : '?') + '_=' + Date.now();
-                    const response = await fetch(cacheBustedUrl);
-                    if (!response.ok) {
-                        throw new Error('HTTP ' + response.status + ' from ' + baseUrl);
-                    }
-                    buffer = await response.arrayBuffer();
-                    break; // success — stop trying further mirrors
-                } catch (attemptErr) {
-                    console.warn('Companies list fetch failed for', baseUrl, attemptErr);
-                    lastError = attemptErr;
-                }
+            const parser = new DOMParser();
+            const dataDoc = parser.parseFromString(htmlText, 'text/html');
+            const table = dataDoc.getElementById('companiesTable');
+            if (!table) {
+                throw new Error('Could not find a table with id="companiesTable" inside ' + COMPANIES_LIST_PAGE + '.');
             }
 
-            if (!buffer) {
-                throw new Error(
-                    'Could not reach either source for the companies list (GitHub raw or jsDelivr mirror). ' +
-                    'This is usually a network/firewall block rather than a problem with the file itself. ' +
-                    (lastError ? 'Last error: ' + lastError.message : '')
-                );
-            }
-
-            const workbook = XLSX.read(buffer, { type: 'array' });
-
-            const sheetName = 'ActiveCompanies';
-            const sheet = workbook.Sheets[sheetName];
-            if (!sheet) {
-                throw new Error('Sheet "' + sheetName + '" was not found in tccompanieslist.xlsx.');
-            }
-
-            // No fixed range is passed here on purpose — sheet_to_json reads the sheet's full
-            // current used range every time, so newly added rows (new Company Name, Company ID,
-            // Voltage Level) are captured automatically the next time the form is loaded.
-            const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-
-            if (!rows || rows.length < 2) {
-                throw new Error('The "ActiveCompanies" sheet appears to be empty.');
-            }
-
-            const headerRow = rows[0].map(h => (h || '').toString().trim().toLowerCase());
-            const nameColIdx = headerRow.indexOf('company name');
-            const idColIdx = headerRow.indexOf('company id');
-            const voltageColIdx = headerRow.indexOf('voltage level');
+            const headerCells = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim().toLowerCase());
+            const nameColIdx = headerCells.indexOf('company name');
+            const idColIdx = headerCells.indexOf('company id');
+            const voltageColIdx = headerCells.indexOf('voltage level');
             if (nameColIdx === -1 || idColIdx === -1) {
-                throw new Error('Could not find "Company Name" and "Company ID" columns in the "ActiveCompanies" sheet.');
+                throw new Error('Could not find "Company Name" and "Company ID" columns in the companiesTable header.');
+            }
+
+            const bodyRows = Array.from(table.querySelectorAll('tbody tr'));
+            if (bodyRows.length === 0) {
+                throw new Error('The companiesTable in ' + COMPANIES_LIST_PAGE + ' has no data rows.');
             }
 
             select.innerHTML = '';
@@ -917,21 +889,21 @@
             blankOption.textContent = '-- Select Company --';
             select.appendChild(blankOption);
 
-            for (let i = 1; i < rows.length; i++) {
-                const row = rows[i];
-                const companyName = (row[nameColIdx] || '').toString().trim();
-                const companyId = (row[idColIdx] || '').toString().trim();
-                if (!companyName) continue;
+            bodyRows.forEach(tr => {
+                const cells = Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim());
+                const companyName = cells[nameColIdx] || '';
+                const companyId = cells[idColIdx] || '';
+                if (!companyName) return;
 
                 const opt = document.createElement('option');
                 opt.value = companyName;
                 opt.dataset.companyId = companyId;
                 if (voltageColIdx !== -1) {
-                    opt.dataset.voltageLevel = (row[voltageColIdx] || '').toString().trim();
+                    opt.dataset.voltageLevel = cells[voltageColIdx] || '';
                 }
                 opt.textContent = companyName;
                 select.appendChild(opt);
-            }
+            });
 
             // Reapply any previously saved selection now that the list is populated
             const rawState = localStorage.getItem(STORAGE_KEY);
@@ -947,7 +919,7 @@
         } catch (err) {
             console.error('Failed to load Companies List:', err);
             select.innerHTML = '<option value="">-- Unable to load Companies List --</option>';
-            alert('Unable to load the Companies List dropdown.\n\n' + err.message + '\n\nIf this keeps happening, check that this device/network can reach raw.githubusercontent.com and cdn.jsdelivr.net (some corporate firewalls block one or both).');
+            alert('Unable to load the Companies List dropdown.\n\n' + err.message + '\n\nMake sure "companieslist.html" is uploaded in the exact same folder as this form file.');
         }
     }
 
