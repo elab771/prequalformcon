@@ -736,6 +736,53 @@
         return false;
     }
 
+    // Wraps a base64 string onto 76-character lines, as required by the
+    // MIME "base64" Content-Transfer-Encoding spec.
+    function chunkBase64(base64Str, chunkSize = 76) {
+        const lines = [];
+        for (let i = 0; i < base64Str.length; i += chunkSize) {
+            lines.push(base64Str.slice(i, i + chunkSize));
+        }
+        return lines.join('\r\n');
+    }
+
+    // Builds a raw RFC822 email (.eml) containing an HTML body plus a base64
+    // file attachment, and downloads it. The "X-Unsent: 1" header is a
+    // de-facto standard that Outlook for Windows honors to open the file as
+    // an editable new-message compose window (pre-filled, not read-only)
+    // rather than as a received message. Other mail clients (Outlook on Mac,
+    // Outlook on the web, Apple Mail, etc.) may not honor X-Unsent the same
+    // way, so this is offered alongside — not instead of — the mailto/clipboard path.
+    function downloadEmlWithAttachment(subjectStr, htmlBodyStr, attachmentBase64, attachmentFileName, attachmentMimeType, emlDownloadName) {
+        const boundary = '----=_NextPart_' + Date.now().toString(36);
+        const fullHtmlDoc = `<html><body style="font-family:Arial,sans-serif;font-size:13px;">${htmlBodyStr}</body></html>`;
+
+        const emlContent =
+            `To: \r\n` +
+            `Subject: ${subjectStr}\r\n` +
+            `X-Unsent: 1\r\n` +
+            `MIME-Version: 1.0\r\n` +
+            `Content-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n` +
+            `--${boundary}\r\n` +
+            `Content-Type: text/html; charset="UTF-8"\r\n` +
+            `Content-Transfer-Encoding: 8bit\r\n\r\n` +
+            `${fullHtmlDoc}\r\n\r\n` +
+            `--${boundary}\r\n` +
+            `Content-Type: ${attachmentMimeType}; name="${attachmentFileName}"\r\n` +
+            `Content-Transfer-Encoding: base64\r\n` +
+            `Content-Disposition: attachment; filename="${attachmentFileName}"\r\n\r\n` +
+            `${chunkBase64(attachmentBase64)}\r\n\r\n` +
+            `--${boundary}--`;
+
+        const emlBlob = new Blob([emlContent], { type: 'message/rfc822' });
+        const emlLinkElement = document.createElement('a');
+        emlLinkElement.href = URL.createObjectURL(emlBlob);
+        emlLinkElement.download = emlDownloadName;
+        document.body.appendChild(emlLinkElement);
+        emlLinkElement.click();
+        document.body.removeChild(emlLinkElement);
+    }
+
     async function loadCompaniesList() {
         try {
             const cacheBustedUrl = COMPANIES_LIST_PAGE + '?_=' + Date.now();
@@ -1298,13 +1345,29 @@
 
             const clipboardCopySucceeded = await copyHtmlTableToClipboard(emailHtmlStr, emailBodyStr);
 
+            // Build a ready-to-send .eml with the styled table AND the zip
+            // already attached, for Outlook (Windows) users to just double-click.
+            let emlGenerationSucceeded = false;
+            try {
+                const zipBase64 = await zip.generateAsync({ type: "base64" });
+                const emlDownloadName = `${(companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_')}_CSD_Approval_Draft_${detailedTimestamp}.eml`;
+                downloadEmlWithAttachment(emailSubjectStr, emailHtmlStr, zipBase64, zipFileName, "application/zip", emlDownloadName);
+                emlGenerationSucceeded = true;
+            } catch (emlErr) {
+                console.error("Failed to generate .eml draft with attachment:", emlErr);
+            }
+
             window.location.href = `mailto:?subject=${emailSubject}&body=${emailBody}`;
 
             const clipboardNote = clipboardCopySucceeded
-                ? "\n\nA fully bordered version of the table (yellow, bold header) has also been copied to your clipboard. Since email links can't apply formatting automatically, paste it (Ctrl+V / Cmd+V) into the email body to replace the plain-text table with the styled one."
-                : "\n\nNote: the styled bordered table could not be copied to your clipboard automatically (this can happen if clipboard access isn't permitted in this browser). The plain-text table in the draft is still usable as-is.";
+                ? "\n\n• The styled table (yellow, bold header) has also been copied to your clipboard, in case you want to paste it (Ctrl+V / Cmd+V) somewhere manually."
+                : "\n\n• The styled table could not be copied to your clipboard automatically (this can happen if clipboard access isn't permitted in this browser).";
 
-            alert(`The zipped file "${zipFileName}" has been downloaded, and an email draft was requested from your computer's default mail app.\n\nIf a draft window didn't open, or opened in the wrong app (e.g. Mail instead of Outlook), the zip is still ready in your Downloads folder to attach manually.${clipboardNote}`);
+            const emlNote = emlGenerationSucceeded
+                ? "\n\n• An .eml draft file was also downloaded, with the bordered/yellow-header table AND the zip already attached inside it. In Outlook for Windows, just double-click that .eml file — it opens as a ready-to-send draft, so you only need to add a recipient and hit Send. (Outlook on Mac and Outlook on the web may not open it the same way.)"
+                : "\n\n• The ready-to-send .eml draft (with the zip pre-attached) could not be generated this time — the plain-text mail draft is still available as a fallback.";
+
+            alert(`The zipped file "${zipFileName}" has been downloaded, and a plain-text email draft was requested from your computer's default mail app.\n\nIf a draft window didn't open, or opened in the wrong app, the zip is still ready in your Downloads folder to attach manually.${emlNote}${clipboardNote}`);
 
             localStorage.removeItem(STORAGE_KEY);
 
