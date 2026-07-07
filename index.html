@@ -699,6 +699,43 @@
         return `${dd}${mm}${yy}${hh}${min}`;
     }
 
+    // ddmmyyhhmmss - same as getFormattedTimestamp but with seconds included.
+    function getDetailedTimestamp() {
+        const d = new Date();
+        const pad = (n) => n.toString().padStart(2, '0');
+        const dd = pad(d.getDate());
+        const mm = pad(d.getMonth() + 1);
+        const yy = pad(d.getFullYear() % 100);
+        const hh = pad(d.getHours());
+        const min = pad(d.getMinutes());
+        const ss = pad(d.getSeconds());
+        return `${dd}${mm}${yy}${hh}${min}${ss}`;
+    }
+
+    function escapeHtml(value) {
+        return (value ?? '').toString()
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    async function copyHtmlTableToClipboard(htmlString, plainString) {
+        try {
+            if (navigator.clipboard && window.ClipboardItem) {
+                const htmlBlob = new Blob([htmlString], { type: 'text/html' });
+                const textBlob = new Blob([plainString], { type: 'text/plain' });
+                const item = new ClipboardItem({ 'text/html': htmlBlob, 'text/plain': textBlob });
+                await navigator.clipboard.write([item]);
+                return true;
+            }
+        } catch (err) {
+            console.error('Clipboard copy of formatted table failed:', err);
+        }
+        return false;
+    }
+
     async function loadCompaniesList() {
         try {
             const cacheBustedUrl = COMPANIES_LIST_PAGE + '?_=' + Date.now();
@@ -1201,7 +1238,7 @@
                 
                 const safeIqama = (engData.identity || 'noiqama').replace(/[^a-z0-9]/gi, '_');
                 const safeCompanyId = (companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_');
-                const pdfFileName = `${safeCompanyId}_CSDID${safeIqama}_RXX.pdf`;
+                const pdfFileName = `${safeCompanyId}_CSDID_${safeIqama}_RXX.pdf`;
                 zip.file(pdfFileName, finalPdfBytes);
             }
 
@@ -1217,9 +1254,24 @@
             zipLinkElement.click();
             document.body.removeChild(zipLinkElement);
 
+            const tableHeaders = ["SN", "Name", "Status", "Region", "Location", "Remarks"];
+
+            // Plain-text version: the mailto: protocol cannot carry HTML/CSS,
+            // so the body opened in the mail app will always render as plain text.
             let emailBodyStr = `Dear,\n\nGood day. This is to kindly request for the approval interviews of the following Engineers available in ${regionVal}:\n\n`;
             emailBodyStr += "SN\t|\tName\t|\tStatus\t|\tRegion\t|\tLocation\t|\tRemarks\n";
             emailBodyStr += "--------------------------------------------------------------------------------------------\n";
+
+            // HTML version: fully bordered table with a bold, yellow header row.
+            // This is copied to the clipboard so it can be pasted (as rich text)
+            // into the email body, since mailto can't apply formatting directly.
+            let emailHtmlStr = `<p>Dear,</p><p>Good day. This is to kindly request for the approval interviews of the following Engineers available in ${escapeHtml(regionVal)}:</p>`;
+            emailHtmlStr += `<table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;border:1px solid #000;font-family:Arial,sans-serif;font-size:13px;">`;
+            emailHtmlStr += `<thead><tr>`;
+            tableHeaders.forEach(h => {
+                emailHtmlStr += `<th style="border:1px solid #000;background-color:#ffff00;font-weight:bold;padding:6px;">${h}</th>`;
+            });
+            emailHtmlStr += `</tr></thead><tbody>`;
 
             records.forEach((record, idx) => {
                 const name = record.querySelector('[name="profile_name[]"]').value.replace(/\n/g, ' ');
@@ -1228,15 +1280,31 @@
                 const rem = record.querySelector('[name="profile_remarks[]"]').value;
                 
                 emailBodyStr += `${idx+1}\t|\t${name}\t|\t${status}\t|\t${regionVal}\t|\t${loc}\t|\t${rem}\n`;
+
+                emailHtmlStr += `<tr>`;
+                [idx + 1, name, status, regionVal, loc, rem].forEach(cellVal => {
+                    emailHtmlStr += `<td style="border:1px solid #000;padding:6px;">${escapeHtml(cellVal)}</td>`;
+                });
+                emailHtmlStr += `</tr>`;
             });
 
             emailBodyStr += "\nAttached above are the related documents for each of the engineers in the list. FYA and Best Regards";
+            emailHtmlStr += `</tbody></table><p>Attached above are the related documents for each of the engineers in the list. FYA and Best Regards</p>`;
 
-            const emailSubject = encodeURIComponent("Engineers Qualification Tracker Export Submission");
+            const detailedTimestamp = getDetailedTimestamp();
+            const emailSubjectStr = `${companyIdVal || ''} - for CSD Approval Interview requests_SN${detailedTimestamp}`;
+            const emailSubject = encodeURIComponent(emailSubjectStr);
             const emailBody = encodeURIComponent(emailBodyStr);
+
+            const clipboardCopySucceeded = await copyHtmlTableToClipboard(emailHtmlStr, emailBodyStr);
+
             window.location.href = `mailto:?subject=${emailSubject}&body=${emailBody}`;
 
-            alert(`The zipped file "${zipFileName}" has been downloaded, and an email draft was requested from your computer's default mail app.\n\nIf a draft window didn't open, or opened in the wrong app (e.g. Mail instead of Outlook), the zip is still ready in your Downloads folder to attach manually.`);
+            const clipboardNote = clipboardCopySucceeded
+                ? "\n\nA fully bordered version of the table (yellow, bold header) has also been copied to your clipboard. Since email links can't apply formatting automatically, paste it (Ctrl+V / Cmd+V) into the email body to replace the plain-text table with the styled one."
+                : "\n\nNote: the styled bordered table could not be copied to your clipboard automatically (this can happen if clipboard access isn't permitted in this browser). The plain-text table in the draft is still usable as-is.";
+
+            alert(`The zipped file "${zipFileName}" has been downloaded, and an email draft was requested from your computer's default mail app.\n\nIf a draft window didn't open, or opened in the wrong app (e.g. Mail instead of Outlook), the zip is still ready in your Downloads folder to attach manually.${clipboardNote}`);
 
             localStorage.removeItem(STORAGE_KEY);
 
