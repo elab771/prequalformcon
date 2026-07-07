@@ -12,13 +12,11 @@
             color: #000000;
         }
 
-        /* Top Layout Container for Header */
         .top-container {
             width: 1770px;
             margin-bottom: 20px;
         }
 
-        /* Header block with button grouping aligned with layout grid boundary edge */
         .header-panel {
             display: flex;
             justify-content: space-between;
@@ -31,6 +29,16 @@
             display: flex;
             gap: 10px;
             align-items: center;
+        }
+
+        .global-fields-panel {
+            display: flex; 
+            gap: 40px; 
+            align-items: center; 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border: 1px dashed #ccc; 
+            border-radius: 4px;
         }
 
         h2 {
@@ -78,39 +86,29 @@
             background-color: #bd2130;
         }
 
-        /* Master row alignment across columns - profile section and qualifications table
-           are flex siblings with align-items: flex-start, so they always share the same
-           top edge (i.e. stay horizontally aligned on the same row) automatically. */
         .master-layout-row {
             display: flex;
             flex-direction: row;
-            align-items: flex-start;
+            align-items: stretch;
             gap: 0px;
             width: 100%;
         }
 
-        /* Enforced grid size area width alignment matching sum of grid elements.
-           align-self: stretch makes this wrapper match the profile-table's full height
-           (the tallest sibling in .master-layout-row), so the Status/Region/Location/
-           Remarks row below can be anchored to the bottom of that shared height instead
-           of overlapping the qualifications table's own last row. */
         .qualifications-layout-wrapper {
             display: flex;
             flex-direction: column;
             width: 1375px; 
             flex-shrink: 0;
             align-self: stretch;
+            justify-content: flex-start;
+            gap: 12px;
         }
 
-        /* Lower split structure: pinned to the bottom of the stretched wrapper via
-           margin-top: auto, so it lines up with the last row of the engineer profile
-           section without ever overlapping the qualifications table's last row. */
         .inline-revisions-container {
             display: flex;
             flex-direction: row;
             align-items: flex-end;
             width: 100%;
-            margin-top: auto;
         }
 
         table {
@@ -138,6 +136,7 @@
         .profile-table {
             width: 380px; 
             flex-shrink: 0;
+            height: 100%;
         }
         
         .profile-table th {
@@ -149,7 +148,6 @@
             width: 45%;
         }
 
-        /* Horizontal inline meta fields table block configuration */
         .meta-fields-table {
             width: 100%;
             table-layout: fixed;
@@ -166,6 +164,7 @@
             background: transparent;
             outline: none;
             font-size: 12px;
+            padding-left: 6px;
         }
 
         .meta-fields-table select {
@@ -193,7 +192,6 @@
             line-height: 1.2;
         }
 
-        /* 4-part split container with edge padding safety buffers for label positioning */
         .exp-split-container {
             display: flex;
             width: 100%;
@@ -222,7 +220,6 @@
             text-align: center;
             box-sizing: border-box;
         }
-        /* Forces the Mos label beautifully clear of the right border stroke line */
         .exp-split-container span:last-of-type {
             padding-right: 6px;
         }
@@ -249,17 +246,11 @@
             cursor: pointer;
         }
 
-        /* Company Name select inside the engineer profile table: allowed to wrap onto
-           up to 3 lines so a long selected company name stays fully readable instead
-           of being clipped to a single line. */
         .company-select {
             white-space: normal;
             line-height: 1.3;
             padding: 4px 0;
             overflow: visible;
-        }
-        .company-field-row {
-            height: 64px;
         }
         
         .file-wrapper {
@@ -280,7 +271,6 @@
             white-space: nowrap;
         }
 
-        /* Dynamic background styles for qualifications */
         .qual-cell {
             text-align: center;
             padding: 0; 
@@ -359,7 +349,6 @@
             background-color: #218838;
         }
     </style>
-    <!-- Dependencies Libraries for PDF template filling and zip compression -->
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 </head>
@@ -369,11 +358,30 @@
     
     <div class="top-container">
         <div class="header-panel">
-            <h2>Engineer's Qualification Tracker</h2>
+            <h2>ENGINEER'S QUALIFICATION APPROVAL REQUEST FORM</h2>
             <div class="header-actions">
                 <button type="button" class="btn btn-add" onclick="addNewEngineer()">Add Another Engineer</button>
                 <button type="button" class="btn btn-reset" onclick="confirmResetForm()">Clear & Reset Form</button>
                 <button type="submit" class="btn btn-submit">Submit Rows</button>
+            </div>
+        </div>
+        
+        <div class="global-fields-panel">
+            <div style="display: flex; align-items: center; gap: 10px; flex-grow: 1;">
+                <label style="font-weight: bold; white-space: nowrap;">Company Name</label>
+                <select id="global_company" class="company-select yellow-cell" style="width: 100%; height: 32px; border: 1px solid #ccc; font-size: 14px;" onchange="saveFormState()">
+                    <option value="">-- Loading Companies List... --</option>
+                </select>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; width: 300px;">
+                <label style="font-weight: bold; white-space: nowrap;">Region</label>
+                <select id="global_region" class="yellow-cell" style="width: 100%; height: 32px; border: 1px solid #ccc; font-size: 14px;" onchange="saveFormState()">
+                    <option value=""></option>
+                    <option value="COA">COA</option>
+                    <option value="EOA">EOA</option>
+                    <option value="SOA">SOA</option>
+                    <option value="WOA">WOA</option>
+                </select>
             </div>
         </div>
     </div>
@@ -388,15 +396,7 @@
         <div class="master-layout-row">
             <table class="profile-table">
                 <tbody>
-                    <tr class="company-field-row">
-                        <td class="profile-label">Company Name</td>
-                        <td class="yellow-cell">
-                            <select name="profile_company[]" class="company-select" onchange="saveFormState()">
-                                <option value="">-- Loading Companies List... --</option>
-                            </select>
-                        </td>
-                    </tr>
-                    <tr style="height: 42px;">
+                    <tr>
                         <td class="profile-label">Engineer's Name <span style="color: #d32f2f;">(as per IQAMA/ID)</span></td>
                         <td class="yellow-cell"><textarea name="profile_name[]" class="name-textarea" rows="2" oninput="saveFormState()"></textarea></td>
                     </tr>
@@ -409,139 +409,52 @@
                                 <option value="Albanian">Albanian</option>
                                 <option value="Algerian">Algerian</option>
                                 <option value="American">American</option>
-                                <option value="Andorran">Andorran</option>
-                                <option value="Angolan">Angolan</option>
-                                <option value="Argentine">Argentine</option>
-                                <option value="Armenian">Armenian</option>
                                 <option value="Australian">Australian</option>
                                 <option value="Austrian">Austrian</option>
-                                <option value="Azerbaijani">Azerbaijani</option>
-                                <option value="Bahamian">Bahamian</option>
                                 <option value="Bahraini">Bahraini</option>
                                 <option value="Bangladeshi">Bangladeshi</option>
-                                <option value="Barbadian">Barbadian</option>
-                                <option value="Belarusian">Belarusian</option>
                                 <option value="Belgian">Belgian</option>
-                                <option value="Belizian">Belizian</option>
-                                <option value="Beninese">Beninese</option>
-                                <option value="Bhutanese">Bhutanese</option>
-                                <option value="Bolivian">Bolivian</option>
-                                <option value="Bosnian">Bosnian</option>
                                 <option value="Brazilian">Brazilian</option>
                                 <option value="British">British</option>
-                                <option value="Bruneian">Bruneian</option>
                                 <option value="Bulgarian">Bulgarian</option>
-                                <option value="Burkinabe">Burkinabe</option>
-                                <option value="Burmese">Burmese</option>
-                                <option value="Burundian">Burundian</option>
-                                <option value="Cambodian">Cambodian</option>
-                                <option value="Cameroonian">Cameroonian</option>
                                 <option value="Canadian">Canadian</option>
-                                <option value="Cape Verdean">Cape Verdean</option>
-                                <option value="Chadian">Chadian</option>
-                                <option value="Chilean">Chilean</option>
                                 <option value="Chinese">Chinese</option>
                                 <option value="Colombian">Colombian</option>
-                                <option value="Comoran">Comoran</option>
-                                <option value="Congolese">Congolese</option>
-                                <option value="Costa Rican">Costa Rican</option>
                                 <option value="Croatian">Croatian</option>
-                                <option value="Cuban">Cuban</option>
-                                <option value="Cypriot">Cypriot</option>
                                 <option value="Czech">Czech</option>
                                 <option value="Danish">Danish</option>
-                                <option value="Djiboutian">Djiboutian</option>
-                                <option value="Dominican">Dominican</option>
                                 <option value="Dutch">Dutch</option>
-                                <option value="East Timorese">East Timorese</option>
-                                <option value="Ecuadorian">Ecuadorian</option>
                                 <option value="Egyptian">Egyptian</option>
                                 <option value="Emirati">Emirati</option>
-                                <option value="Equatorial Guinean">Equatorial Guinean</option>
-                                <option value="Eritrean">Eritrean</option>
-                                <option value="Estonian">Estonian</option>
-                                <option value="Ethiopian">Ethiopian</option>
-                                <option value="Fijian">Fijian</option>
                                 <option value="Filipino">Filipino</option>
                                 <option value="Finnish">Finnish</option>
                                 <option value="French">French</option>
-                                <option value="Gabonese">Gabonese</option>
-                                <option value="Gambian">Gambian</option>
-                                <option value="Georgian">Georgian</option>
                                 <option value="German">German</option>
-                                <option value="Ghanaian">Ghanaian</option>
                                 <option value="Greek">Greek</option>
-                                <option value="Grenadian">Grenadian</option>
-                                <option value="Guatemalan">Guatemalan</option>
-                                <option value="Guinean">Guinean</option>
-                                <option value="Guyanese">Guyanese</option>
-                                <option value="Haitian">Haitian</option>
-                                <option value="Honduran">Honduran</option>
                                 <option value="Hungarian">Hungarian</option>
-                                <option value="Icelander">Icelander</option>
                                 <option value="Indian">Indian</option>
                                 <option value="Indonesian">Indonesian</option>
-                                <option value="Iranian">Iranian</option>
-                                <option value="Iraqi">Iraqi</option>
                                 <option value="Irish">Irish</option>
                                 <option value="Italian">Italian</option>
-                                <option value="Ivorian">Ivorian</option>
-                                <option value="Jamaican">Jamaican</option>
                                 <option value="Japanese">Japanese</option>
                                 <option value="Jordanian">Jordanian</option>
-                                <option value="Kazakhstani">Kazakhstani</option>
                                 <option value="Kenyan">Kenyan</option>
                                 <option value="Kuwaiti">Kuwaiti</option>
-                                <option value="Kyrgyz">Kyrgyz</option>
-                                <option value="Laotian">Laotian</option>
-                                <option value="Latvian">Latvian</option>
                                 <option value="Lebanese">Lebanese</option>
-                                <option value="Liberian">Liberian</option>
-                                <option value="Libyan">Libyan</option>
-                                <option value="Lithuanian">Lithuanian</option>
-                                <option value="Luxembourger">Luxembourger</option>
-                                <option value="Macedonian">Macedonian</option>
-                                <option value="Malagasy">Malagasy</option>
-                                <option value="Malawian">Malawian</option>
                                 <option value="Malaysian">Malaysian</option>
-                                <option value="Maldivian">Maldivian</option>
-                                <option value="Malian">Malian</option>
-                                <option value="Maltese">Maltese</option>
-                                <option value="Mauritanian">Mauritanian</option>
-                                <option value="Mauritian">Mauritian</option>
                                 <option value="Mexican">Mexican</option>
-                                <option value="Moldovan">Moldovan</option>
-                                <option value="Monacan">Monacan</option>
-                                <option value="Mongolian">Mongolian</option>
                                 <option value="Moroccan">Moroccan</option>
-                                <option value="Mozambican">Mozambican</option>
-                                <option value="Namibian">Namibian</option>
-                                <option value="Nepalese">Nepalese</option>
                                 <option value="New Zealander">New Zealander</option>
-                                <option value="Nicaraguan">Nicaraguan</option>
                                 <option value="Nigerian">Nigerian</option>
-                                <option value="Nigerien">Nigerien</option>
-                                <option value="North Korean">North Korean</option>
                                 <option value="Norwegian">Norwegian</option>
                                 <option value="Omani">Omani</option>
                                 <option value="Pakistani">Pakistani</option>
-                                <option value="Panamanian">Panamanian</option>
-                                <option value="Paraguayan">Paraguayan</option>
-                                <option value="Peruvian">Peruvian</option>
                                 <option value="Polish">Polish</option>
                                 <option value="Portuguese">Portuguese</option>
                                 <option value="Qatari">Qatari</option>
                                 <option value="Romanian">Romanian</option>
                                 <option value="Russian">Russian</option>
-                                <option value="Rwandan">Rwandan</option>
                                 <option value="Saudi">Saudi</option>
-                                <option value="Senegalese">Senegalese</option>
-                                <option value="Serbian">Serbian</option>
-                                <option value="Sierra Leonean">Sierra Leonean</option>
-                                <option value="Singaporean">Singaporean</option>
-                                <option value="Slovak">Slovak</option>
-                                <option value="Slovenian">Slovenian</option>
-                                <option value="Somali">Somali</option>
                                 <option value="South African">South African</option>
                                 <option value="South Korean">South Korean</option>
                                 <option value="Spanish">Spanish</option>
@@ -551,36 +464,28 @@
                                 <option value="Swiss">Swiss</option>
                                 <option value="Syrian">Syrian</option>
                                 <option value="Taiwanese">Taiwanese</option>
-                                <option value="Tajik">Tajik</option>
-                                <option value="Tanzanian">Tanzanian</option>
                                 <option value="Thai">Thai</option>
-                                <option value="Togolese">Togolese</option>
                                 <option value="Tunisian">Tunisian</option>
                                 <option value="Turkish">Turkish</option>
-                                <option value="Turkmen">Turkmen</option>
-                                <option value="Ugandan">Ugandan</option>
                                 <option value="Ukrainian">Ukrainian</option>
-                                <option value="Uruguayan">Uruguayan</option>
-                                <option value="Uzbek">Uzbek</option>
                                 <option value="Venezuelan">Venezuelan</option>
                                 <option value="Vietnamese">Vietnamese</option>
                                 <option value="Yemeni">Yemeni</option>
-                                <option value="Zambian">Zambian</option>
                                 <option value="Zimbabwean">Zimbabwean</option>
                             </select>
                         </td>
                     </tr>
                     <tr>
                         <td class="profile-label">Iqama/ID</td>
-                        <td class="yellow-cell"><input type="text" name="profile_identity[]" inputmode="numeric" maxlength="10" oninput="enforceNumericLimit(this); saveFormState()"></td>
+                        <td class="yellow-cell"><input type="text" name="profile_identity[]" inputmode="numeric" maxlength="10" placeholder="10 Digits" oninput="enforceNumericLimit(this, 10); saveFormState()"></td>
                     </tr>
                     <tr>
                         <td class="profile-label">Total Experience</td>
                         <td class="yellow-cell" style="padding:0;">
                             <div class="exp-split-container">
-                                <input type="text" name="profile_total_exp_yrs[]" placeholder="0" oninput="saveFormState()">
+                                <input type="text" name="profile_total_exp_yrs[]" placeholder="0" oninput="this.value = this.value.replace(/\D/g, ''); saveFormState()">
                                 <span>Yrs</span>
-                                <input type="text" name="profile_total_exp_mos[]" placeholder="0" oninput="saveFormState()">
+                                <input type="text" name="profile_total_exp_mos[]" placeholder="0" oninput="this.value = this.value.replace(/\D/g, ''); saveFormState()">
                                 <span>Mos</span>
                             </div>
                         </td>
@@ -589,18 +494,27 @@
                         <td class="profile-label">Experience in KSA</td>
                         <td class="yellow-cell" style="padding:0;">
                             <div class="exp-split-container">
-                                <input type="text" name="profile_ksa_exp_yrs[]" placeholder="0" oninput="saveFormState()">
+                                <input type="text" name="profile_ksa_exp_yrs[]" placeholder="0" oninput="this.value = this.value.replace(/\D/g, ''); saveFormState()">
                                 <span>Yrs</span>
-                                <input type="text" name="profile_ksa_exp_mos[]" placeholder="0" oninput="saveFormState()">
+                                <input type="text" name="profile_ksa_exp_mos[]" placeholder="0" oninput="this.value = this.value.replace(/\D/g, ''); saveFormState()">
                                 <span>Mos</span>
                             </div>
                         </td>
                     </tr>
                     <tr>
                         <td class="profile-label">Contact No</td>
-                        <td class="yellow-cell"><input type="text" name="profile_contact[]" inputmode="numeric" maxlength="10" oninput="enforceNumericLimit(this); saveFormState()"></td>
+                        <td class="yellow-cell"><input type="text" name="profile_contact[]" inputmode="numeric" maxlength="10" placeholder="10 Digits" oninput="enforceNumericLimit(this, 10); saveFormState()"></td>
                     </tr>
-                    <!-- Tooltip condition criteria mapped onto root parent wrapping cells -->
+                    <tr>
+                        <td class="profile-label">Status</td>
+                        <td class="yellow-cell">
+                            <select name="profile_status[]" onchange="saveFormState()">
+                                <option value=""></option>
+                                <option value="New">New</option>
+                                <option value="Upgrade">Upgrade</option>
+                            </select>
+                        </td>
+                    </tr>
                     <tr title="Please make sure the file you will be uploading here is a merged file of the following IN SEQUENCE:&#10;&#10;1) Previous Approval Form(if available)&#10;2) Iqama or ID&#10;3) Muqeem Information&#10;4) Engineer's CV(should be stamped, updated and brief)&#10;5) PD Certificate from the PD measuring unit manufacturer(see PD certificate conditions)&#10;6) Engineering Accreditation certifications from Saudi council of Engineers(the specialization must be shown) + barcode&#10;7) GOSI(showing your company's name as an employer - for Saudis only)+barcode.">
                         <td class="profile-label">Credentials Attachment</td>
                         <td class="yellow-cell">
@@ -741,29 +655,13 @@
                     <table class="meta-fields-table">
                         <tbody>
                             <tr>
-                                <td class="profile-label" style="width: 60px; text-align: center;">Status</td>
-                                <td class="yellow-cell" style="width: 100px;">
-                                    <select name="profile_status[]" onchange="saveFormState()">
-                                        <option value=""></option>
-                                        <option value="New">New</option>
-                                        <option value="Upgrade">Upgrade</option>
-                                    </select>
-                                </td>
-                                <td class="profile-label" style="width: 60px; text-align: center;">Region</td>
-                                <td class="yellow-cell" style="width: 100px;">
-                                    <select name="profile_region[]" onchange="saveFormState()">
-                                        <option value=""></option>
-                                        <option value="COA">COA</option>
-                                        <option value="EOA">EOA</option>
-                                        <option value="SOA">SOA</option>
-                                        <option value="WOA">WOA</option>
-                                    </select>
-                                </td>
-                                <td class="profile-label" style="width: 70px; text-align: center;">Location</td>
-                                <td class="yellow-cell" style="width: 180px;">
+                                <td class="profile-label" style="width: 170px; text-align: center;">Location</td>
+                                <td class="yellow-cell">
                                     <input type="text" name="profile_location[]" oninput="saveFormState()">
                                 </td>
-                                <td class="profile-label" style="width: 70px; text-align: center;">Remarks</td>
+                            </tr>
+                            <tr>
+                                <td class="profile-label" style="width: 170px; text-align: center;">Remarks</td>
                                 <td class="yellow-cell">
                                     <input type="text" name="profile_remarks[]" oninput="saveFormState()">
                                 </td>
@@ -779,21 +677,9 @@
 <script>
     const STORAGE_KEY = 'engineer_form_persistent_state';
 
-    // ================== CONFIGURATION ==================
-    // The companies list is read from a dedicated data page, "companieslist.html", which must be
-    // hosted in the SAME FOLDER as this form. Because it's fetched from the same origin (not
-    // GitHub or any external CDN), this avoids the network/firewall blocks that external raw
-    // file hosts can run into on restrictive networks. Edit companieslist.html directly whenever
-    // the companies list changes — this form re-reads it fresh every time it loads.
     const COMPANIES_LIST_PAGE = "companieslist.html";
-    // =====================================================
-
-    // Holds the parsed { name, id, voltage } rows fetched from companieslist.html so that every
-    // per-engineer Company Name dropdown (including ones added later via "Add Another Engineer")
-    // can be populated from the same in-memory source without re-fetching.
     let companiesData = null;
 
-    // Restricts a text input to digits only, up to a maximum length (used for Iqama/ID and Contact No)
     function enforceNumericLimit(inputElement, maxLength = 10) {
         let digitsOnly = inputElement.value.replace(/\D/g, '');
         if (digitsOnly.length > maxLength) {
@@ -802,15 +688,6 @@
         inputElement.value = digitsOnly;
     }
 
-    // Returns the currently selected company's "Company ID" (from that record's dropdown data attribute)
-    function getSelectedCompanyId(record) {
-        const select = record.querySelector('[name="profile_company[]"]');
-        if (!select) return '';
-        const selectedOption = select.options[select.selectedIndex];
-        return selectedOption ? (selectedOption.dataset.companyId || '') : '';
-    }
-
-    // Formats current date/time as ddmmyyhhmm
     function getFormattedTimestamp() {
         const d = new Date();
         const pad = (n) => n.toString().padStart(2, '0');
@@ -822,16 +699,12 @@
         return `${dd}${mm}${yy}${hh}${min}`;
     }
 
-    // Fetches companieslist.html (same folder, same origin as this form) and reads the
-    // #companiesTable table inside it into the in-memory companiesData array. Does not touch the
-    // DOM directly — each per-engineer Company Name select is populated separately via
-    // populateCompanySelect() so newly added engineer records can be filled on demand.
     async function loadCompaniesList() {
         try {
             const cacheBustedUrl = COMPANIES_LIST_PAGE + '?_=' + Date.now();
             const response = await fetch(cacheBustedUrl);
             if (!response.ok) {
-                throw new Error('Could not fetch "' + COMPANIES_LIST_PAGE + '" (HTTP ' + response.status + '). Make sure it is uploaded in the same folder as this form.');
+                throw new Error('Could not fetch "' + COMPANIES_LIST_PAGE + '" (HTTP ' + response.status + ').');
             }
             const htmlText = await response.text();
 
@@ -839,7 +712,7 @@
             const dataDoc = parser.parseFromString(htmlText, 'text/html');
             const table = dataDoc.getElementById('companiesTable');
             if (!table) {
-                throw new Error('Could not find a table with id="companiesTable" inside ' + COMPANIES_LIST_PAGE + '.');
+                throw new Error('Could not find a table with id="companiesTable".');
             }
 
             const headerCells = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim().toLowerCase());
@@ -847,12 +720,12 @@
             const idColIdx = headerCells.indexOf('company id');
             const voltageColIdx = headerCells.indexOf('voltage level');
             if (nameColIdx === -1 || idColIdx === -1) {
-                throw new Error('Could not find "Company Name" and "Company ID" columns in the companiesTable header.');
+                throw new Error('Could not find "Company Name" and "Company ID" columns.');
             }
 
             const bodyRows = Array.from(table.querySelectorAll('tbody tr'));
             if (bodyRows.length === 0) {
-                throw new Error('The companiesTable in ' + COMPANIES_LIST_PAGE + ' has no data rows.');
+                throw new Error('The companiesTable has no data rows.');
             }
 
             companiesData = bodyRows.map(tr => {
@@ -867,11 +740,10 @@
         } catch (err) {
             console.error('Failed to load Companies List:', err);
             companiesData = null;
-            alert('Unable to load the Companies List dropdown.\n\n' + err.message + '\n\nMake sure "companieslist.html" is uploaded in the exact same folder as this form file.');
+            alert('Unable to load the Companies List dropdown.\n\n' + err.message);
         }
     }
 
-    // Fills a single Company Name <select> element with the options built from companiesData.
     function populateCompanySelect(selectElement) {
         if (!selectElement) return;
         const previousValue = selectElement.value;
@@ -885,10 +757,11 @@
         if (companiesData) {
             companiesData.forEach(c => {
                 const opt = document.createElement('option');
-                opt.value = c.name;
+                const concatenatedVal = c.id + ' - ' + c.name;
+                opt.value = concatenatedVal;
                 opt.dataset.companyId = c.id;
                 opt.dataset.voltageLevel = c.voltage || '';
-                opt.textContent = c.name;
+                opt.textContent = concatenatedVal;
                 selectElement.appendChild(opt);
             });
         }
@@ -898,7 +771,6 @@
         }
     }
 
-    // Intercept rule to display text verification modal before opening standard folder browsers
     function triggerSequenceVerificationPrompt(event) {
         const dialogText = "Please make sure the file you will be uploading here is a merged file of the following IN SEQUENCE:\n\n" +
                            "1) Previous Approval Form(if available)\n" +
@@ -944,14 +816,34 @@
         }
     }
 
+    function syncRecordHeights(record) {
+        if (!record) return;
+        const profileTable = record.querySelector('.profile-table');
+        const qualWrapper = record.querySelector('.qualifications-layout-wrapper');
+        if (!profileTable || !qualWrapper) return;
+
+        // Reset to natural (content-driven) heights before measuring.
+        profileTable.style.height = 'auto';
+        qualWrapper.style.height = 'auto';
+
+        const profileHeight = profileTable.getBoundingClientRect().height;
+        const qualHeight = qualWrapper.getBoundingClientRect().height;
+        const targetHeight = Math.max(profileHeight, qualHeight);
+
+        // Explicit pixel heights (unlike percentage/flex-stretch) reliably
+        // enlarge <table> elements, so both columns end up the same total height.
+        profileTable.style.height = targetHeight + 'px';
+        qualWrapper.style.height = targetHeight + 'px';
+    }
+
+    function syncAllRecordHeights() {
+        document.querySelectorAll('#engineers-container .engineer-record').forEach(syncRecordHeights);
+    }
+
     function addNewEngineer(savedData = null) {
         const container = document.getElementById('engineers-container');
         const templateNode = document.querySelector('#record-template .engineer-record');
         const newRecord = templateNode.cloneNode(true);
-
-        // Populate this record's own Company Name dropdown before applying any saved values,
-        // so a saved company selection has a matching <option> to select.
-        populateCompanySelect(newRecord.querySelector('[name="profile_company[]"]'));
 
         if (savedData) {
             newRecord.querySelectorAll('input[type="text"], textarea').forEach((el, index) => {
@@ -966,6 +858,7 @@
         container.appendChild(newRecord);
         
         updateRemoveButtonsVisibility();
+        requestAnimationFrame(() => syncRecordHeights(newRecord));
         if (!savedData) saveFormState();
     }
 
@@ -1002,7 +895,13 @@
             state.push({ texts, selects });
         });
 
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ records: state }));
+        const globalState = {
+            company: document.getElementById('global_company').value,
+            region: document.getElementById('global_region').value,
+            records: state
+        };
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(globalState));
     }
 
     function loadFormState() {
@@ -1013,6 +912,9 @@
         if (rawState) {
             try {
                 const parsedState = JSON.parse(rawState);
+                if (parsedState.company !== undefined) document.getElementById('global_company').value = parsedState.company;
+                if (parsedState.region !== undefined) document.getElementById('global_region').value = parsedState.region;
+
                 if (parsedState && parsedState.records && parsedState.records.length > 0) {
                     parsedState.records.forEach(recordData => addNewEngineer(recordData));
                     return;
@@ -1028,80 +930,62 @@
         const message = "Are you sure you want to completely clear the rows and reset the entry form?\nAll unsubmitted input details will be lost permanently.";
         if (confirm(message)) {
             localStorage.removeItem(STORAGE_KEY);
+            document.getElementById('global_company').value = "";
+            document.getElementById('global_region').value = "";
             loadFormState();
         }
     }
 
-    /**
-     * Reads prequalform.pdf template layer, executes programmatic injection mapping rules,
-     * flattens interactive configurations, and returns binary bytes directly back to queue.
-     */
     async function getPopulatedPDFBytes(data, companyName, templateBytes) {
         const pdfDoc = await PDFLib.PDFDocument.load(templateBytes);
         const form = pdfDoc.getForm();
-
-        const safeGetField = (fieldName) => {
-            try {
-                return form.getField(fieldName);
-            } catch (e) {
-                console.warn(`Field not found or inaccessible: "${fieldName}"`, e);
-                return null;
-            }
-        };
 
         const safeSetText = (fieldName, value) => {
             try {
                 const field = form.getTextField(fieldName);
                 if (field) field.setText(value || '');
             } catch (e) {
-                console.warn(`Text fill skipped for: "${fieldName}"`, e);
+                console.warn(`Text fill skipped for: "${fieldName}"`);
             }
         };
 
         const normalizeValue = (value) => (value ?? '').toString().trim();
         const conditionalContextValue = (value) => normalizeValue(value).toUpperCase() === 'NO' ? normalizeValue(value) : '';
 
-        // Primary PDF field mappings
         const primaryFieldMap = {
             txtengrname: data.name,
             txtnationality: data.nationality,
             txtidentityno: data.identity,
             txtcompanyname: companyName,
             txttotalexpyr: data.total_yrs,
-            txttotalexpmo: data.ksa_mos,
+            txttotalexpmo: data.total_mos,
             txtexpksayr: data.ksa_yrs,
-            txtexpksamo: data.total_mos
+            txtexpksamo: data.ksa_mos
         };
 
         Object.entries(primaryFieldMap).forEach(([fieldName, value]) => {
             safeSetText(fieldName, value);
         });
 
-        data.matrix.forEach(item => {
-            safeSetText(item.pdfField, item.value);
-        });
+        data.matrix.forEach(item => safeSetText(item.pdfField, item.value));
 
-        // Context ("ctxt...") fields should only show the source value when that source value is NO.
         const contextFieldMap = {
             ctxtengrname: data.name,
             ctxtnationality: data.nationality,
             ctxtidentityno: data.identity,
             ctxtcompanyname: companyName,
             ctxttotalexpyr: data.total_yrs,
-            ctxttotalexpmo: data.ksa_mos,
+            ctxttotalexpmo: data.total_mos,
             ctxtexpksayr: data.ksa_yrs,
-            ctxtexpksamo: data.total_mos
+            ctxtexpksamo: data.ksa_mos
         };
 
-        data.matrix.forEach(item => {
-            contextFieldMap[`c${item.pdfField}`] = item.value;
-        });
+        data.matrix.forEach(item => contextFieldMap[`c${item.pdfField}`] = item.value);
 
         Object.entries(contextFieldMap).forEach(([fieldName, value]) => {
             safeSetText(fieldName, conditionalContextValue(value));
         });
 
-        // Lock every field except ctxt* fields that are blank after population.
         form.getFields().forEach(field => {
             const fieldName = field.getName();
             const isContextField = fieldName.startsWith('ctxt');
@@ -1133,24 +1017,32 @@
         });
     }
 
-    // Validates that all yellow-highlighted required fields are filled in for every engineer
-    // record (Company Name, Name, Nationality, Iqama/ID, Total Experience, Experience in KSA,
-    // Contact No, Credentials Attachment). Returns true if valid.
     function validateRequiredYellowFields(records) {
+        const companyEl = document.getElementById('global_company');
+        const regionEl = document.getElementById('global_region');
+        
+        if (!companyEl.value) {
+            alert("Please select a Company Name from the header block.");
+            companyEl.focus();
+            return false;
+        }
+        if (!regionEl.value) {
+            alert("Please select a Region from the header block.");
+            regionEl.focus();
+            return false;
+        }
+
         for (let i = 0; i < records.length; i++) {
             const record = records[i];
             const recordNum = i + 1;
 
             const fieldsToCheck = [
-                { selector: '[name="profile_company[]"]', label: 'Company Name' },
                 { selector: '[name="profile_name[]"]', label: "Engineer's Name" },
                 { selector: '[name="profile_nationality[]"]', label: 'Nationality' },
-                { selector: '[name="profile_identity[]"]', label: 'Iqama/ID' },
                 { selector: '[name="profile_total_exp_yrs[]"]', label: 'Total Experience (Yrs)' },
                 { selector: '[name="profile_total_exp_mos[]"]', label: 'Total Experience (Mos)' },
                 { selector: '[name="profile_ksa_exp_yrs[]"]', label: 'Experience in KSA (Yrs)' },
-                { selector: '[name="profile_ksa_exp_mos[]"]', label: 'Experience in KSA (Mos)' },
-                { selector: '[name="profile_contact[]"]', label: 'Contact No' }
+                { selector: '[name="profile_ksa_exp_mos[]"]', label: 'Experience in KSA (Mos)' }
             ];
 
             for (const field of fieldsToCheck) {
@@ -1162,13 +1054,26 @@
                 }
             }
 
+            const identityEl = record.querySelector('[name="profile_identity[]"]');
+            if (!identityEl || !/^\d{10}$/.test(identityEl.value)) {
+                alert(`Engineer Record #${recordNum}: Please enter exactly 10 digits for the Iqama/ID.`);
+                if (identityEl) identityEl.focus();
+                return false;
+            }
+
+            const contactEl = record.querySelector('[name="profile_contact[]"]');
+            if (!contactEl || !/^\d{10}$/.test(contactEl.value)) {
+                alert(`Engineer Record #${recordNum}: Please enter exactly 10 digits for the Contact No.`);
+                if (contactEl) contactEl.focus();
+                return false;
+            }
+
             const credentialsInput = record.querySelector('[name="profile_credentials[]"]');
             if (!credentialsInput || !credentialsInput.files || credentialsInput.files.length === 0) {
                 alert(`Engineer Record #${recordNum}: Please attach the required "Credentials Attachment" file before submitting.`);
                 return false;
             }
         }
-
         return true;
     }
 
@@ -1190,11 +1095,14 @@
                 throw new Error('Could not read backend prequalform.pdf template file.');
             }
             const templateBytes = await response.arrayBuffer();
+            
+            const globalCompanySelect = document.getElementById('global_company');
+            const companyNameVal = globalCompanySelect.value;
+            const companyIdVal = globalCompanySelect.options[globalCompanySelect.selectedIndex].dataset.companyId || 'nocompanyid';
+            const regionVal = document.getElementById('global_region').value;
 
             for (let record of records) {
                 const credentialsInput = record.querySelector('[name="profile_credentials[]"]');
-                const companyName = record.querySelector('[name="profile_company[]"]').value;
-                const companyId = getSelectedCompanyId(record);
 
                 const engData = {
                     name: record.querySelector('[name="profile_name[]"]').value,
@@ -1206,7 +1114,7 @@
                     ksa_mos: record.querySelector('[name="profile_ksa_exp_mos[]"]').value,
                     contact: record.querySelector('[name="profile_contact[]"]').value,
                     status: record.querySelector('[name="profile_status[]"]').value,
-                    region: record.querySelector('[name="profile_region[]"]').value,
+                    region: regionVal,
                     location: record.querySelector('[name="profile_location[]"]').value,
                     remarks: record.querySelector('[name="profile_remarks[]"]').value,
                     matrix: [
@@ -1271,17 +1179,13 @@
                     ]
                 };
 
-                // 1. Generate core form layout map bytes
-                const populatedBytes = await getPopulatedPDFBytes(engData, companyName, templateBytes);
-                
-                // Initialize clean structural instance for file tracking layers mapping loops
+                const populatedBytes = await getPopulatedPDFBytes(engData, companyNameVal, templateBytes);
                 const mergedPdf = await PDFLib.PDFDocument.create();
-                
                 const sourceFormPdf = await PDFLib.PDFDocument.load(populatedBytes);
+                
                 const formPages = await mergedPdf.copyPages(sourceFormPdf, sourceFormPdf.getPageIndices());
                 formPages.forEach(p => mergedPdf.addPage(p));
 
-                // 2. Sequential file processing attachment stream (appends directly after form document payload)
                 if (credentialsInput && credentialsInput.files.length > 0) {
                     try {
                         const credentialsBytes = await readAsArrayBuffer(credentialsInput.files[0]);
@@ -1293,25 +1197,18 @@
                     }
                 }
 
-                // Close files stream output layer matrix blocks
                 const finalPdfBytes = await mergedPdf.save();
-
-                // Filename format: {Company ID}_{Iqama No}_prequalrequest.pdf
+                
                 const safeIqama = (engData.identity || 'noiqama').replace(/[^a-z0-9]/gi, '_');
-                const safeCompanyId = (companyId || 'nocompanyid').replace(/[^a-z0-9]/gi, '_');
-                const pdfFileName = `${safeCompanyId}_${safeIqama}_prequalrequest.pdf`;
+                const safeCompanyId = (companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_');
+                const pdfFileName = `${safeCompanyId}_CSDID${safeIqama}_RXX.pdf`;
                 zip.file(pdfFileName, finalPdfBytes);
             }
 
-            // Zip filename format: {Company ID}_prequalrequest{ddmmyyhhmm}
-            // Since Company Name is now selected per engineer, the first engineer record's
-            // company is used to label the overall zip file.
-            const firstRecordCompanyId = getSelectedCompanyId(records[0]);
             const timestamp = getFormattedTimestamp();
-            const safeCompanyId = (firstRecordCompanyId || 'nocompanyid').replace(/[^a-z0-9]/gi, '_');
-            const zipFileName = `${safeCompanyId}_prequalrequest${timestamp}.zip`;
+            const safeCompanyIdZ = (companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_');
+            const zipFileName = `${safeCompanyIdZ}_prequalrequest${timestamp}.zip`;
 
-            // Complete browser pipeline download sequence loops
             const zipContentBlob = await zip.generateAsync({ type: "blob" });
             const zipLinkElement = document.createElement('a');
             zipLinkElement.href = URL.createObjectURL(zipContentBlob);
@@ -1320,14 +1217,23 @@
             zipLinkElement.click();
             document.body.removeChild(zipLinkElement);
 
-            // A webpage cannot detect which mail app (Outlook, Mail, Thunderbird, etc.) or which
-            // account is configured on the user's PC — that information isn't exposed to the
-            // browser. So instead of asking the user to confirm Outlook is their default first,
-            // we always try to open a mail draft via mailto: (it opens whatever the OS has set
-            // as default) and always leave the zip downloaded either way, so the file is ready
-            // to attach manually if the draft didn't open where expected.
+            let emailBodyStr = `Dear,\n\nGood day. This is to kindly request for the approval interviews of the following Engineers available in ${regionVal}:\n\n`;
+            emailBodyStr += "SN\t|\tName\t|\tStatus\t|\tRegion\t|\tLocation\t|\tRemarks\n";
+            emailBodyStr += "--------------------------------------------------------------------------------------------\n";
+
+            records.forEach((record, idx) => {
+                const name = record.querySelector('[name="profile_name[]"]').value.replace(/\n/g, ' ');
+                const status = record.querySelector('[name="profile_status[]"]').value;
+                const loc = record.querySelector('[name="profile_location[]"]').value;
+                const rem = record.querySelector('[name="profile_remarks[]"]').value;
+                
+                emailBodyStr += `${idx+1}\t|\t${name}\t|\t${status}\t|\t${regionVal}\t|\t${loc}\t|\t${rem}\n`;
+            });
+
+            emailBodyStr += "\nAttached above are the related documents for each of the engineers in the list. FYA and Best Regards";
+
             const emailSubject = encodeURIComponent("Engineers Qualification Tracker Export Submission");
-            const emailBody = encodeURIComponent("Hello,\n\nPlease find attached the generated qualification packages (" + zipFileName + ").\n\nBest Regards.");
+            const emailBody = encodeURIComponent(emailBodyStr);
             window.location.href = `mailto:?subject=${emailSubject}&body=${emailBody}`;
 
             alert(`The zipped file "${zipFileName}" has been downloaded, and an email draft was requested from your computer's default mail app.\n\nIf a draft window didn't open, or opened in the wrong app (e.g. Mail instead of Outlook), the zip is still ready in your Downloads folder to attach manually.`);
@@ -1342,7 +1248,15 @@
 
     document.addEventListener('DOMContentLoaded', async function() {
         await loadCompaniesList();
+        populateCompanySelect(document.getElementById('global_company'));
         loadFormState();
+        requestAnimationFrame(syncAllRecordHeights);
+    });
+
+    let resizeSyncTimer = null;
+    window.addEventListener('resize', function() {
+        clearTimeout(resizeSyncTimer);
+        resizeSyncTimer = setTimeout(syncAllRecordHeights, 150);
     });
 </script>
 
