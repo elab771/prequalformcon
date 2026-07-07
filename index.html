@@ -1382,7 +1382,7 @@
                 : "";
 
             const emlNote = emlGenerationSucceeded
-                ? `An .eml draft file "${(companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_')}_CSD_Approval_Draft_${detailedTimestamp}.eml" was downloaded, with the bordered/yellow-header table in the body and all ${individualPdfAttachments.length} generated PDF(s) attached individually (not zipped). In Outlook for Windows, just double-click that .eml file — it opens as a ready-to-send draft, so you only need to add a recipient and hit Send. (Outlook on Mac and Outlook on the web may not open it the same way.)${sizeWarningNote}`
+                ? `An .eml draft file "${(companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_')}_CSD_Approval_Draft_${detailedTimestamp}.eml" was downloaded, with all ${individualPdfAttachments.length} generated PDF(s) attached individually (not zipped). In Outlook for Windows, just double-click that .eml file — it opens as a ready-to-send draft, so you only need to add a recipient and hit Send. It should open fine in Outlook(classic) provided that you already have a microsoft exchange account(setup by your Company IT admin). (Outlook on Mac and Outlook on the web may not open it the same way.)${sizeWarningNote}`
                 : "The .eml draft could not be generated this time — check the browser console for details.";
 
             alert(`The zipped file "${zipFileName}" has been downloaded.\n\n${emlNote}\n\nIf the .eml doesn't open as expected, the zip is still ready in your Downloads folder to attach manually.`);
