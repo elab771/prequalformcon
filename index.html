@@ -1060,7 +1060,7 @@
         }
     }
 
-    async function getPopulatedPDFBytes(data, companyName, templateBytes) {
+async function getPopulatedPDFBytes(data, companyName, templateBytes) {
         const pdfDoc = await PDFLib.PDFDocument.load(templateBytes);
         const form = pdfDoc.getForm();
 
@@ -1084,7 +1084,8 @@
             txttotalexpyr: data.total_yrs,
             txttotalexpmo: data.total_mos,
             txtexpksayr: data.ksa_yrs,
-            txtexpksamo: data.ksa_mos
+            txtexpksamo: data.ksa_mos,
+            txtmobileno: data.contact // Updated to match PDF field
         };
 
         Object.entries(primaryFieldMap).forEach(([fieldName, value]) => {
@@ -1101,7 +1102,8 @@
             ctxttotalexpyr: data.total_yrs,
             ctxttotalexpmo: data.total_mos,
             ctxtexpksayr: data.ksa_yrs,
-            ctxtexpksamo: data.ksa_mos
+            ctxtexpksamo: data.ksa_mos,
+            ctxtmobileno: data.contact // Updated to match PDF field
         };
 
         data.matrix.forEach(item => contextFieldMap[`c${item.pdfField}`] = item.value);
