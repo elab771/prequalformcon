@@ -24,6 +24,12 @@
             margin-bottom: 15px;
             width: 100%; 
         }
+        
+        .header-title-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
 
         .header-actions {
             display: flex;
@@ -348,6 +354,13 @@
         .btn-submit:hover {
             background-color: #218838;
         }
+        .btn-submit-pdfs {
+            background-color: #17a2b8;
+            color: white;
+        }
+        .btn-submit-pdfs:hover {
+            background-color: #138496;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -358,11 +371,15 @@
     
     <div class="top-container">
         <div class="header-panel">
-            <h2>ENGINEER'S QUALIFICATION APPROVAL REQUEST FORM</h2>
+            <div class="header-title-wrapper">
+                <h2>ENGINEER'S QUALIFICATION APPROVAL REQUEST FORM</h2>
+                <a href="csd_approvalreq_webtoolguide.html" target="_blank" style="font-size: 13px; color: #007bff; text-decoration: underline;">Click this to open the Instructions/Guides in using this web tool</a>
+            </div>
             <div class="header-actions">
                 <button type="button" id="btn-add-engineer" class="btn btn-add" onclick="addNewEngineer()">Add Another Engineer</button>
                 <button type="button" class="btn btn-reset" onclick="confirmResetForm()">Clear & Reset Form</button>
-                <button type="submit" class="btn btn-submit">Submit Rows</button>
+                <button type="button" class="btn btn-submit-pdfs" onclick="handleFormSubmission(event, true)">Generate PDF forms</button>
+                <button type="submit" class="btn btn-submit">Generate Email Draft & PDF forms</button>
             </div>
         </div>
         
@@ -1184,7 +1201,7 @@
         return true;
     }
 
-    async function handleFormSubmission(event) {
+    async function handleFormSubmission(event, skipEml = false) {
         event.preventDefault();
 
         const records = document.querySelectorAll('#engineers-container .engineer-record');
@@ -1331,61 +1348,65 @@
             zipLinkElement.click();
             document.body.removeChild(zipLinkElement);
 
-            const tableHeaders = ["SN", "Name", "Status", "Region", "Location", "Remarks"];
+            if (!skipEml) {
+                const tableHeaders = ["SN", "Name", "Status", "Region", "Location", "Remarks"];
 
-            // HTML table for the .eml body: fully bordered with a bold, yellow header row.
-            let emailHtmlStr = `<p>Dear,</p><p>Good day. This is to kindly request for the approval interviews of the following Engineers available in ${escapeHtml(regionVal)}:</p>`;
-            emailHtmlStr += `<table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;border:1px solid #000;font-family:Arial,sans-serif;font-size:13px;">`;
-            emailHtmlStr += `<thead><tr>`;
-            tableHeaders.forEach(h => {
-                emailHtmlStr += `<th style="border:1px solid #000;background-color:#ffff00;font-weight:bold;padding:6px;">${h}</th>`;
-            });
-            emailHtmlStr += `</tr></thead><tbody>`;
-
-            records.forEach((record, idx) => {
-                const name = record.querySelector('[name="profile_name[]"]').value.replace(/\n/g, ' ');
-                const status = record.querySelector('[name="profile_status[]"]').value;
-                const loc = record.querySelector('[name="profile_location[]"]').value;
-                const rem = record.querySelector('[name="profile_remarks[]"]').value;
-
-                emailHtmlStr += `<tr>`;
-                [idx + 1, name, status, regionVal, loc, rem].forEach(cellVal => {
-                    emailHtmlStr += `<td style="border:1px solid #000;padding:6px;">${escapeHtml(cellVal)}</td>`;
+                // HTML table for the .eml body: fully bordered with a bold, yellow header row.
+                let emailHtmlStr = `<p>Dear,</p><p>Good day. This is to kindly request for the approval interviews of the following Engineers available in ${escapeHtml(regionVal)}:</p>`;
+                emailHtmlStr += `<table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;border:1px solid #000;font-family:Arial,sans-serif;font-size:13px;">`;
+                emailHtmlStr += `<thead><tr>`;
+                tableHeaders.forEach(h => {
+                    emailHtmlStr += `<th style="border:1px solid #000;background-color:#ffff00;font-weight:bold;padding:6px;">${h}</th>`;
                 });
-                emailHtmlStr += `</tr>`;
-            });
+                emailHtmlStr += `</tr></thead><tbody>`;
 
-            emailHtmlStr += `</tbody></table><p>Attached above are the related documents for each of the engineers in the list. FYA and Best Regards</p>`;
+                records.forEach((record, idx) => {
+                    const name = record.querySelector('[name="profile_name[]"]').value.replace(/\n/g, ' ');
+                    const status = record.querySelector('[name="profile_status[]"]').value;
+                    const loc = record.querySelector('[name="profile_location[]"]').value;
+                    const rem = record.querySelector('[name="profile_remarks[]"]').value;
 
-            const detailedTimestamp = getDetailedTimestamp();
-            const emailSubjectStr = `${companyIdVal || ''} - for CSD Approval Interview requests_SN${detailedTimestamp}`;
+                    emailHtmlStr += `<tr>`;
+                    [idx + 1, name, status, regionVal, loc, rem].forEach(cellVal => {
+                        emailHtmlStr += `<td style="border:1px solid #000;padding:6px;">${escapeHtml(cellVal)}</td>`;
+                    });
+                    emailHtmlStr += `</tr>`;
+                });
 
-            // Build a ready-to-send .eml with the styled table AND every
-            // engineer's PDF attached individually (not zipped), for Outlook
-            // (Windows) users to just double-click.
-            let emlGenerationSucceeded = false;
-            let totalAttachmentBytes = 0;
-            try {
-                totalAttachmentBytes = individualPdfAttachments.reduce(
-                    (sum, att) => sum + Math.ceil(att.base64.length * 0.75), 0
-                );
-                const emlDownloadName = `${(companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_')}_CSD_Approval_Draft_${detailedTimestamp}.eml`;
-                downloadEmlWithAttachments(emailSubjectStr, emailHtmlStr, individualPdfAttachments, emlDownloadName);
-                emlGenerationSucceeded = true;
-            } catch (emlErr) {
-                console.error("Failed to generate .eml draft with attachments:", emlErr);
+                emailHtmlStr += `</tbody></table><p>Attached above are the related documents for each of the engineers in the list. FYA and Best Regards</p>`;
+
+                const detailedTimestamp = getDetailedTimestamp();
+                const emailSubjectStr = `${companyIdVal || ''} - for CSD Approval Interview requests_SN${detailedTimestamp}`;
+
+                // Build a ready-to-send .eml with the styled table AND every
+                // engineer's PDF attached individually (not zipped), for Outlook
+                // (Windows) users to just double-click.
+                let emlGenerationSucceeded = false;
+                let totalAttachmentBytes = 0;
+                try {
+                    totalAttachmentBytes = individualPdfAttachments.reduce(
+                        (sum, att) => sum + Math.ceil(att.base64.length * 0.75), 0
+                    );
+                    const emlDownloadName = `${(companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_')}_CSD_Approval_Draft_${detailedTimestamp}.eml`;
+                    downloadEmlWithAttachments(emailSubjectStr, emailHtmlStr, individualPdfAttachments, emlDownloadName);
+                    emlGenerationSucceeded = true;
+                } catch (emlErr) {
+                    console.error("Failed to generate .eml draft with attachments:", emlErr);
+                }
+
+                const sizeWarningThresholdBytes = 20 * 1024 * 1024; // ~20MB: a common Outlook/Exchange attachment cap
+                const sizeWarningNote = totalAttachmentBytes > sizeWarningThresholdBytes
+                    ? `\n\n⚠ Combined, the ${individualPdfAttachments.length} attached PDF(s) total roughly ${(totalAttachmentBytes / (1024 * 1024)).toFixed(1)} MB. Many mail servers (Outlook/Exchange ~20-25MB, Gmail ~25MB) will reject or strip an email over that size — if sending fails, use the zip file instead.`
+                    : "";
+
+                const emlNote = emlGenerationSucceeded
+                    ? `An .eml draft file "${(companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_')}_CSD_Approval_Draft_${detailedTimestamp}.eml" was downloaded, with all ${individualPdfAttachments.length} generated PDF(s) attached individually (not zipped). It is a ready-to-send draft, so you only need to add a recipient and hit Send. It must be opened with Outlook(classic) provided that you already have a microsoft exchange account(setup by your Company IT admin). (Outlook on Mac and Outlook on the web may not open it the same way.)${sizeWarningNote}`
+                    : "The .eml draft could not be generated this time — check the browser console for details.";
+
+                alert(`The zipped file "${zipFileName}" has been downloaded.\n\n${emlNote}\n\nIf the .eml doesn't open as expected, the zip is still ready in your Downloads folder to attach manually.`);
+            } else {
+                alert(`The zipped file "${zipFileName}" containing the PDF forms has been downloaded successfully.`);
             }
-
-            const sizeWarningThresholdBytes = 20 * 1024 * 1024; // ~20MB: a common Outlook/Exchange attachment cap
-            const sizeWarningNote = totalAttachmentBytes > sizeWarningThresholdBytes
-                ? `\n\n⚠ Combined, the ${individualPdfAttachments.length} attached PDF(s) total roughly ${(totalAttachmentBytes / (1024 * 1024)).toFixed(1)} MB. Many mail servers (Outlook/Exchange ~20-25MB, Gmail ~25MB) will reject or strip an email over that size — if sending fails, use the zip file instead.`
-                : "";
-
-            const emlNote = emlGenerationSucceeded
-                ? `An .eml draft file "${(companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_')}_CSD_Approval_Draft_${detailedTimestamp}.eml" was downloaded, with all ${individualPdfAttachments.length} generated PDF(s) attached individually (not zipped). It is a ready-to-send draft, so you only need to add a recipient and hit Send. It must be opened with Outlook(classic) provided that you already have a microsoft exchange account(setup by your Company IT admin). (Outlook on Mac and Outlook on the web may not open it the same way.)${sizeWarningNote}`
-                : "The .eml draft could not be generated this time — check the browser console for details.";
-
-            alert(`The zipped file "${zipFileName}" has been downloaded.\n\n${emlNote}\n\nIf the .eml doesn't open as expected, the zip is still ready in your Downloads folder to attach manually.`);
 
             localStorage.removeItem(STORAGE_KEY);
 
