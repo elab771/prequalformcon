@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSD T&C CONTRACTOR ENGINEER'S QUALIFICATION APPROVAL REQUEST TOOL</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 40px; max-width: 900px; color: #333; }
+        h1 { color: #0056b3; font-size: 24px; text-align: center; }
+        h2 { color: #444; border-bottom: 2px solid #0056b3; padding-bottom: 5px; font-size: 20px; margin-top: 30px;}
+        ul { margin-bottom: 15px; padding-left: 20px; }
+        li { margin-bottom: 8px; }
+        .important { font-weight: bold; color: #d9534f; }
+        code { background-color: #f4f4f4; padding: 2px 5px; border-radius: 4px; font-family: 'Courier New', Courier, monospace; }
+        .container { border: 1px solid #ddd; padding: 30px; border-radius: 8px; background-color: #fafafa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CSD T&C CONTRACTOR ENGINEER'S QUALIFICATION APPROVAL REQUEST TOOL</h1>
+        <h2>General Guidelines/Instructions</h2>
+        <ul>
+            <li>Except for the remarks and Location fields, all fields are mandatory to be filled up.</li>
+            <li>Engineer’s Name Should be as per the Name indicated in the IQAMA/Residence ID. It should be written as First Name Last Name.</li>
+            <li><span class="important">(Important)</span> Previous Approval if requesting for upgrade should be attached even if it was a downgrade revision.</li>
+            <li>2 buttons are available at rightmost part of the form:
+                <ul>
+                    <li><strong>Generate PDF forms</strong> – Generates a zipped file of the approval forms in pdf of the engineers inputted.
+                        <ul>
+                            <li>Filename of the generated zipped file containing the PDF files is in this format:<br>
+                            <code>Company ID + "_prequalrequest" + "DateandTimenow(Format ddmmyyhhmm"</code></li>
+                            <li>Filename of the PDF files are in this format:<br>
+                            <code>Company ID + "_CSDID_" + IqamaNo + "_RXX"</code></li>
+                        </ul>
+                    </li>
+                    <li><strong>Generate Email Draft &amp; PDF forms (in zipped file)</strong> - Generates an eml file which is a draft email format that commonly opens in ms outlook classic provided that there is already a Microsoft exchange account setup in the Computer where you will be accessing this tool.
+                        <ul>
+                            <li>The Same zipped file and PDF files will be generated as stated in 4.a.ii.</li>
+                            <li>The eml file will have a filename in this format:<br>
+                            <code>Company ID + "_CSD_Approval_Draft_" + "DateandTimenow(Format ddmmyyhhmmnn"</code></li>
+                        </ul>
+                    </li>
+                </ul>
+            </li>
+            <li><span class="important">(Important)</span> If you have a Microsoft exchange account already setup in the computer where you will be using this tool, please open generate .eml file with outlook(classic).
+                <ul>
+                    <li>It should contain already the generated PDF files as attachments and ready to be sent to CSD-Technical Support recipient to facilitate the interview request.</li>
+                    <li>Just input the email addresses (to; cc, bcc as applicable).</li>
+                    <li>If you want the eml file to be automatically opened by the outlook(classic) app, you can set it by default by:
+                        <br><em>Going to windows settings &gt; apps &gt; default apps &gt; search “set defaults for application” for outlook(classic) &gt; click the .eml option &gt; choose outlook(classic) &gt; click “set as default”</em>
+                    </li>
+                </ul>
+            </li>
+            <li>If the .eml file fails to be generated, you can manually create any email draft and manually attach the generated pdf files of the approval requests.</li>
+            <li><span class="important">(Important)</span> THE GENERATED PDF FILES ARE NOT TO BE ALTERED, REVISED, AND EDITED ONCE GENERATED.<br>
+            If you have mistakenly input incorrect values, you must use the tool again to generate a revised version of the approval request form.</li>
+            <li>The Web tool is limited to inputting only 10 Engineer approval requests only:
+                <ul>
+                    <li>The selected Region will be applicable to the engineers inputted in 1 session.</li>
+                    <li>Please take note of this so the interview request will be as per the correct region.</li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+</body>
+</html>
