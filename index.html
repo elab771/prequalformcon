@@ -716,7 +716,6 @@
         return `${dd}${mm}${yy}${hh}${min}`;
     }
 
-    // ddmmyyhhmmss - same as getFormattedTimestamp but with seconds included.
     function getDetailedTimestamp() {
         const d = new Date();
         const pad = (n) => n.toString().padStart(2, '0');
@@ -738,8 +737,6 @@
             .replace(/'/g, '&#39;');
     }
 
-    // Wraps a base64 string onto 76-character lines, as required by the
-    // MIME "base64" Content-Transfer-Encoding spec.
     function chunkBase64(base64Str, chunkSize = 76) {
         const lines = [];
         for (let i = 0; i < base64Str.length; i += chunkSize) {
@@ -748,12 +745,9 @@
         return lines.join('\r\n');
     }
 
-    // Converts binary PDF bytes to base64 in chunks, since passing a huge
-    // typed array straight into String.fromCharCode.apply(...) can blow the
-    // call stack on larger PDFs.
     function uint8ArrayToBase64(bytes) {
         let binary = '';
-        const chunkSize = 0x8000; // 32KB
+        const chunkSize = 0x8000; 
         for (let i = 0; i < bytes.length; i += chunkSize) {
             const chunk = bytes.subarray(i, i + chunkSize);
             binary += String.fromCharCode.apply(null, chunk);
@@ -761,12 +755,6 @@
         return btoa(binary);
     }
 
-    // Builds a raw RFC822 email (.eml) containing an HTML body plus any
-    // number of base64 file attachments, and downloads it. The "X-Unsent: 1"
-    // header is a de-facto standard that Outlook for Windows honors to open
-    // the file as an editable new-message compose window (pre-filled, not
-    // read-only) rather than as a received message. Outlook on Mac and
-    // Outlook on the web may not honor X-Unsent the same way.
     function downloadEmlWithAttachments(subjectStr, htmlBodyStr, attachments, emlDownloadName) {
         const boundary = '----=_NextPart_' + Date.now().toString(36);
         const fullHtmlDoc = `<html><body style="font-family:Arial,sans-serif;font-size:13px;">${htmlBodyStr}</body></html>`;
@@ -899,11 +887,38 @@
         }
     }
 
+    function validateDropdownRules(select) {
+        const record = select.closest('.engineer-record');
+        if (!record) return true;
+
+        const ksaYrs = parseInt(record.querySelector('[name="profile_ksa_exp_yrs[]"]').value) || 0;
+        const totalYrs = parseInt(record.querySelector('[name="profile_total_exp_yrs[]"]').value) || 0;
+
+        if (select.name === 'q_live_substations[]' && select.value === 'YES') {
+            if (ksaYrs < 1) {
+                alert("Validation Error:\n'Live Substations' can only be marked as YES if Experience in KSA is 1 year or greater.");
+                return false;
+            }
+        }
+
+        if ((select.name === 'q_coordinator_hv[]' || select.name === 'q_coordinator_ehv[]') && select.value === 'YES') {
+            if (totalYrs < 7 || ksaYrs < 2) {
+                alert("Validation Error:\n'Site Coordinator' can only be marked as YES if Total Experience is 7 years or greater AND Experience in KSA is 2 years or greater.");
+                return false;
+            }
+        }
+        return true;
+    }
+
     function initSelectColors(context) {
         const dropdowns = context.querySelectorAll('.qual-select');
         dropdowns.forEach(select => {
             applySelectColor(select);
             select.addEventListener('change', function() {
+                // Instantly revert to NO if validation fails during selection
+                if (!validateDropdownRules(this)) {
+                    this.value = 'NO';
+                }
                 applySelectColor(this);
                 saveFormState();
             });
@@ -925,7 +940,6 @@
         const qualWrapper = record.querySelector('.qualifications-layout-wrapper');
         if (!profileTable || !qualWrapper) return;
 
-        // Reset to natural (content-driven) heights before measuring.
         profileTable.style.height = 'auto';
         qualWrapper.style.height = 'auto';
 
@@ -933,8 +947,6 @@
         const qualHeight = qualWrapper.getBoundingClientRect().height;
         const targetHeight = Math.max(profileHeight, qualHeight);
 
-        // Explicit pixel heights (unlike percentage/flex-stretch) reliably
-        // enlarge <table> elements, so both columns end up the same total height.
         profileTable.style.height = targetHeight + 'px';
         qualWrapper.style.height = targetHeight + 'px';
     }
@@ -1060,7 +1072,7 @@
         }
     }
 
-async function getPopulatedPDFBytes(data, companyName, templateBytes) {
+    async function getPopulatedPDFBytes(data, companyName, templateBytes) {
         const pdfDoc = await PDFLib.PDFDocument.load(templateBytes);
         const form = pdfDoc.getForm();
 
@@ -1085,7 +1097,7 @@ async function getPopulatedPDFBytes(data, companyName, templateBytes) {
             txttotalexpmo: data.total_mos,
             txtexpksayr: data.ksa_yrs,
             txtexpksamo: data.ksa_mos,
-            txtmobileno: data.contact // Updated to match PDF field
+            txtmobileno: data.contact
         };
 
         Object.entries(primaryFieldMap).forEach(([fieldName, value]) => {
@@ -1103,7 +1115,7 @@ async function getPopulatedPDFBytes(data, companyName, templateBytes) {
             ctxttotalexpmo: data.total_mos,
             ctxtexpksayr: data.ksa_yrs,
             ctxtexpksamo: data.ksa_mos,
-            ctxtmobileno: data.contact // Updated to match PDF field
+            ctxtmobileno: data.contact 
         };
 
         data.matrix.forEach(item => contextFieldMap[`c${item.pdfField}`] = item.value);
@@ -1178,6 +1190,34 @@ async function getPopulatedPDFBytes(data, companyName, templateBytes) {
                     if (el) el.focus();
                     return false;
                 }
+            }
+
+            // --- NEW EXPERIENCE VALIDATION ---
+            const totalYrs = parseInt(record.querySelector('[name="profile_total_exp_yrs[]"]').value) || 0;
+            const totalMos = parseInt(record.querySelector('[name="profile_total_exp_mos[]"]').value) || 0;
+            const ksaYrs = parseInt(record.querySelector('[name="profile_ksa_exp_yrs[]"]').value) || 0;
+            const ksaMos = parseInt(record.querySelector('[name="profile_ksa_exp_mos[]"]').value) || 0;
+
+            const totalExpMonths = (totalYrs * 12) + totalMos;
+            const ksaExpMonths = (ksaYrs * 12) + ksaMos;
+
+            if (ksaExpMonths > totalExpMonths) {
+                alert(`Engineer Record #${recordNum}:\nCombined Experience in KSA (${ksaYrs} Yrs, ${ksaMos} Mos) cannot be greater than the Combined Total Experience (${totalYrs} Yrs, ${totalMos} Mos).`);
+                return false;
+            }
+
+            // --- DOUBLE CHECK DROPDOWN CONDITIONS BEFORE SUBMITTING ---
+            const liveSub = record.querySelector('[name="q_live_substations[]"]').value;
+            if (liveSub === 'YES' && ksaYrs < 1) {
+                alert(`Engineer Record #${recordNum}:\n'Live Substations' is marked YES, but Experience in KSA is less than 1 year.`);
+                return false;
+            }
+
+            const coordHV = record.querySelector('[name="q_coordinator_hv[]"]').value;
+            const coordEHV = record.querySelector('[name="q_coordinator_ehv[]"]').value;
+            if ((coordHV === 'YES' || coordEHV === 'YES') && (totalYrs < 7 || ksaYrs < 2)) {
+                alert(`Engineer Record #${recordNum}:\n'Site Coordinator' is marked YES, but requires Total Experience >= 7 years and Experience in KSA >= 2 years.`);
+                return false;
             }
 
             const identityEl = record.querySelector('[name="profile_identity[]"]');
@@ -1353,7 +1393,6 @@ async function getPopulatedPDFBytes(data, companyName, templateBytes) {
             if (!skipEml) {
                 const tableHeaders = ["SN", "Name", "Status", "Region", "Location", "Remarks"];
 
-                // HTML table for the .eml body: fully bordered with a bold, yellow header row.
                 let emailHtmlStr = `<p>Dear,</p><p>Good day. This is to kindly request for the approval interviews of the following Engineers available in ${escapeHtml(regionVal)}:</p>`;
                 emailHtmlStr += `<table border="1" cellspacing="0" cellpadding="6" style="border-collapse:collapse;border:1px solid #000;font-family:Arial,sans-serif;font-size:13px;">`;
                 emailHtmlStr += `<thead><tr>`;
@@ -1380,9 +1419,6 @@ async function getPopulatedPDFBytes(data, companyName, templateBytes) {
                 const detailedTimestamp = getDetailedTimestamp();
                 const emailSubjectStr = `${companyIdVal || ''} - for CSD Approval Interview requests_SN${detailedTimestamp}`;
 
-                // Build a ready-to-send .eml with the styled table AND every
-                // engineer's PDF attached individually (not zipped), for Outlook
-                // (Windows) users to just double-click.
                 let emlGenerationSucceeded = false;
                 let totalAttachmentBytes = 0;
                 try {
@@ -1396,7 +1432,7 @@ async function getPopulatedPDFBytes(data, companyName, templateBytes) {
                     console.error("Failed to generate .eml draft with attachments:", emlErr);
                 }
 
-                const sizeWarningThresholdBytes = 20 * 1024 * 1024; // ~20MB: a common Outlook/Exchange attachment cap
+                const sizeWarningThresholdBytes = 20 * 1024 * 1024;
                 const sizeWarningNote = totalAttachmentBytes > sizeWarningThresholdBytes
                     ? `\n\n⚠ Combined, the ${individualPdfAttachments.length} attached PDF(s) total roughly ${(totalAttachmentBytes / (1024 * 1024)).toFixed(1)} MB. Many mail servers (Outlook/Exchange ~20-25MB, Gmail ~25MB) will reject or strip an email over that size — if sending fails, use the zip file instead.`
                     : "";
