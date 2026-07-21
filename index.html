@@ -447,6 +447,7 @@
             <div class="header-actions">
                 <button type="button" id="btn-add-engineer" class="btn btn-add" onclick="addNewEngineer()">Add Another Engineer</button>
                 <button type="button" id="btn-reset-form" class="btn btn-reset" onclick="confirmResetForm()">Clear & Reset Form</button>
+                <button type="button" id="btn-change-folder" class="btn btn-reset" onclick="resetSaveFolderChoice()" title="Forget the remembered save location and pick a new one next time">Change Save Folder</button>
                 <button type="button" id="btn-submit-pdfs" class="btn btn-submit-pdfs" onclick="handleFormSubmission(event, true)">Generate PDF forms</button>
                 <button type="submit" id="btn-submit-email" class="btn btn-submit">Generate Email Draft & PDF forms</button>
             </div>
@@ -784,7 +785,7 @@
      * JPEG-based PDF. Lossy - text stops being selectable, so this
      * is only intended for the scanned credentials attachment.
      */
-    async function compressPdfFile(file, renderScale = 1.4, jpegQuality = 0.55) {
+    async function compressPdfFile(file, renderScale = 1.1, jpegQuality = 0.65) {
         const originalBytes = await file.arrayBuffer();
         const originalSize = originalBytes.byteLength;
 
@@ -829,7 +830,7 @@
     /* ------------------------------------------------------------
        Generation progress panel + button state control
        ------------------------------------------------------------ */
-    const GENERATION_BUTTON_IDS = ['btn-add-engineer', 'btn-reset-form', 'btn-submit-pdfs', 'btn-submit-email'];
+    const GENERATION_BUTTON_IDS = ['btn-add-engineer', 'btn-reset-form', 'btn-change-folder', 'btn-submit-pdfs', 'btn-submit-email'];
 
     function setGeneratingState(isGenerating) {
         const panel = document.getElementById('generation-status-panel');
@@ -969,6 +970,76 @@
 
     function supportsFolderSaving() {
         return typeof window.showDirectoryPicker === 'function';
+    }
+
+    /* ------------------------------------------------------------
+       Remembers the base folder the user picked, so subsequent
+       "Generate" clicks can create the dated subfolder directly
+       without asking again. Directory handles can't go in
+       localStorage, so this uses a tiny IndexedDB store.
+       ------------------------------------------------------------ */
+    const HANDLE_DB_NAME = 'csd_form_folder_handle_db';
+    const HANDLE_STORE_NAME = 'handles';
+    const HANDLE_KEY = 'baseFolderHandle';
+
+    function openHandleDB() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open(HANDLE_DB_NAME, 1);
+            req.onupgradeneeded = () => {
+                if (!req.result.objectStoreNames.contains(HANDLE_STORE_NAME)) {
+                    req.result.createObjectStore(HANDLE_STORE_NAME);
+                }
+            };
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+    }
+
+    async function saveBaseFolderHandle(handle) {
+        try {
+            const db = await openHandleDB();
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction(HANDLE_STORE_NAME, 'readwrite');
+                tx.objectStore(HANDLE_STORE_NAME).put(handle, HANDLE_KEY);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        } catch (e) {
+            console.warn('Could not remember chosen save folder:', e);
+        }
+    }
+
+    async function loadBaseFolderHandle() {
+        try {
+            const db = await openHandleDB();
+            return await new Promise((resolve, reject) => {
+                const tx = db.transaction(HANDLE_STORE_NAME, 'readonly');
+                const req = tx.objectStore(HANDLE_STORE_NAME).get(HANDLE_KEY);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error);
+            });
+        } catch (e) {
+            return null;
+        }
+    }
+
+    async function clearBaseFolderHandle() {
+        try {
+            const db = await openHandleDB();
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction(HANDLE_STORE_NAME, 'readwrite');
+                tx.objectStore(HANDLE_STORE_NAME).delete(HANDLE_KEY);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        } catch (e) {
+            console.warn('Could not clear remembered save folder:', e);
+        }
+    }
+
+    async function resetSaveFolderChoice() {
+        await clearBaseFolderHandle();
+        alert('Saved folder location cleared. You will be asked to pick a location again next time you generate PDFs.');
     }
 
     async function loadCompaniesList() {
@@ -1442,20 +1513,47 @@
         const folderName = `${safeCompanyIdEarly}_prequalrequest${timestamp}`;
 
         const canSaveToFolder = supportsFolderSaving();
+        let baseDirHandle = null;
         let targetDirHandle = null;
 
         if (canSaveToFolder) {
-            // IMPORTANT: this must happen before any other await, so it still
-            // counts as a direct response to the user's click (browser requirement).
+            // IMPORTANT: this whole block runs before any other await further down,
+            // so permission requests still count as a direct response to the click.
             try {
-                const parentDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-                targetDirHandle = await parentDirHandle.getDirectoryHandle(folderName, { create: true });
-            } catch (pickerErr) {
-                if (pickerErr && pickerErr.name === 'AbortError') {
-                    return; // user cancelled the folder picker - stop quietly
+                baseDirHandle = await loadBaseFolderHandle();
+                if (baseDirHandle) {
+                    let permission = await baseDirHandle.queryPermission({ mode: 'readwrite' });
+                    if (permission !== 'granted') {
+                        permission = await baseDirHandle.requestPermission({ mode: 'readwrite' });
+                    }
+                    if (permission !== 'granted') {
+                        baseDirHandle = null;
+                    }
                 }
-                console.warn('Folder picker unavailable, falling back to individual downloads:', pickerErr);
-                targetDirHandle = null;
+            } catch (e) {
+                baseDirHandle = null;
+            }
+
+            if (!baseDirHandle) {
+                try {
+                    baseDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                    await saveBaseFolderHandle(baseDirHandle);
+                } catch (pickerErr) {
+                    if (pickerErr && pickerErr.name === 'AbortError') {
+                        return; // user cancelled the folder picker - stop quietly
+                    }
+                    console.warn('Folder picker unavailable, falling back to individual downloads:', pickerErr);
+                    baseDirHandle = null;
+                }
+            }
+
+            if (baseDirHandle) {
+                try {
+                    targetDirHandle = await baseDirHandle.getDirectoryHandle(folderName, { create: true });
+                } catch (subDirErr) {
+                    console.warn('Could not create dated subfolder, falling back to individual downloads:', subDirErr);
+                    targetDirHandle = null;
+                }
             }
         }
 
@@ -1582,7 +1680,7 @@
 
                         try {
                             const { blob, originalSize, newSize } =
-                                await compressPdfFile(originalCredFile, 1.4, 0.55);
+                                await compressPdfFile(originalCredFile, 1.1, 0.65);
 
                             if (newSize < originalSize) {
                                 credentialsBytes = await blob.arrayBuffer();
