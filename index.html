@@ -447,7 +447,6 @@
             <div class="header-actions">
                 <button type="button" id="btn-add-engineer" class="btn btn-add" onclick="addNewEngineer()">Add Another Engineer</button>
                 <button type="button" id="btn-reset-form" class="btn btn-reset" onclick="confirmResetForm()">Clear & Reset Form</button>
-                <button type="button" id="btn-change-folder" class="btn btn-reset" onclick="resetSaveFolderChoice()" title="Forget the remembered save location and pick a new one next time">Change Save Folder</button>
                 <button type="button" id="btn-submit-pdfs" class="btn btn-submit-pdfs" onclick="handleFormSubmission(event, true)">Generate PDF forms</button>
                 <button type="submit" id="btn-submit-email" class="btn btn-submit">Generate Email Draft & PDF forms</button>
             </div>
@@ -830,7 +829,7 @@
     /* ------------------------------------------------------------
        Generation progress panel + button state control
        ------------------------------------------------------------ */
-    const GENERATION_BUTTON_IDS = ['btn-add-engineer', 'btn-reset-form', 'btn-change-folder', 'btn-submit-pdfs', 'btn-submit-email'];
+    const GENERATION_BUTTON_IDS = ['btn-add-engineer', 'btn-reset-form', 'btn-submit-pdfs', 'btn-submit-email'];
 
     function setGeneratingState(isGenerating) {
         const panel = document.getElementById('generation-status-panel');
@@ -893,6 +892,15 @@
         const min = pad(d.getMinutes());
         const ss = pad(d.getSeconds());
         return `${dd}${mm}${yy}${hh}${min}${ss}`;
+    }
+
+    function getDateDDMMMYYYY() {
+        const d = new Date();
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const dd = d.getDate().toString().padStart(2, '0');
+        const mmm = months[d.getMonth()];
+        const yyyy = d.getFullYear();
+        return `${dd}-${mmm}-${yyyy}`;
     }
 
     function escapeHtml(value) {
@@ -966,80 +974,6 @@
         linkElement.click();
         document.body.removeChild(linkElement);
         URL.revokeObjectURL(linkElement.href);
-    }
-
-    function supportsFolderSaving() {
-        return typeof window.showDirectoryPicker === 'function';
-    }
-
-    /* ------------------------------------------------------------
-       Remembers the base folder the user picked, so subsequent
-       "Generate" clicks can create the dated subfolder directly
-       without asking again. Directory handles can't go in
-       localStorage, so this uses a tiny IndexedDB store.
-       ------------------------------------------------------------ */
-    const HANDLE_DB_NAME = 'csd_form_folder_handle_db';
-    const HANDLE_STORE_NAME = 'handles';
-    const HANDLE_KEY = 'baseFolderHandle';
-
-    function openHandleDB() {
-        return new Promise((resolve, reject) => {
-            const req = indexedDB.open(HANDLE_DB_NAME, 1);
-            req.onupgradeneeded = () => {
-                if (!req.result.objectStoreNames.contains(HANDLE_STORE_NAME)) {
-                    req.result.createObjectStore(HANDLE_STORE_NAME);
-                }
-            };
-            req.onsuccess = () => resolve(req.result);
-            req.onerror = () => reject(req.error);
-        });
-    }
-
-    async function saveBaseFolderHandle(handle) {
-        try {
-            const db = await openHandleDB();
-            await new Promise((resolve, reject) => {
-                const tx = db.transaction(HANDLE_STORE_NAME, 'readwrite');
-                tx.objectStore(HANDLE_STORE_NAME).put(handle, HANDLE_KEY);
-                tx.oncomplete = () => resolve();
-                tx.onerror = () => reject(tx.error);
-            });
-        } catch (e) {
-            console.warn('Could not remember chosen save folder:', e);
-        }
-    }
-
-    async function loadBaseFolderHandle() {
-        try {
-            const db = await openHandleDB();
-            return await new Promise((resolve, reject) => {
-                const tx = db.transaction(HANDLE_STORE_NAME, 'readonly');
-                const req = tx.objectStore(HANDLE_STORE_NAME).get(HANDLE_KEY);
-                req.onsuccess = () => resolve(req.result || null);
-                req.onerror = () => reject(req.error);
-            });
-        } catch (e) {
-            return null;
-        }
-    }
-
-    async function clearBaseFolderHandle() {
-        try {
-            const db = await openHandleDB();
-            await new Promise((resolve, reject) => {
-                const tx = db.transaction(HANDLE_STORE_NAME, 'readwrite');
-                tx.objectStore(HANDLE_STORE_NAME).delete(HANDLE_KEY);
-                tx.oncomplete = () => resolve();
-                tx.onerror = () => reject(tx.error);
-            });
-        } catch (e) {
-            console.warn('Could not clear remembered save folder:', e);
-        }
-    }
-
-    async function resetSaveFolderChoice() {
-        await clearBaseFolderHandle();
-        alert('Saved folder location cleared. You will be asked to pick a location again next time you generate PDFs.');
     }
 
     async function loadCompaniesList() {
@@ -1505,58 +1439,6 @@
             return;
         }
 
-        // Work out the target folder name up front (needed before we can prompt for a save location)
-        const globalCompanySelectEarly = document.getElementById('global_company');
-        const companyIdValEarly = globalCompanySelectEarly.options[globalCompanySelectEarly.selectedIndex].dataset.companyId || 'nocompanyid';
-        const safeCompanyIdEarly = (companyIdValEarly || 'nocompanyid').replace(/[^a-z0-9]/gi, '_');
-        const timestamp = getFormattedTimestamp();
-        const folderName = `${safeCompanyIdEarly}_prequalrequest${timestamp}`;
-
-        const canSaveToFolder = supportsFolderSaving();
-        let baseDirHandle = null;
-        let targetDirHandle = null;
-
-        if (canSaveToFolder) {
-            // IMPORTANT: this whole block runs before any other await further down,
-            // so permission requests still count as a direct response to the click.
-            try {
-                baseDirHandle = await loadBaseFolderHandle();
-                if (baseDirHandle) {
-                    let permission = await baseDirHandle.queryPermission({ mode: 'readwrite' });
-                    if (permission !== 'granted') {
-                        permission = await baseDirHandle.requestPermission({ mode: 'readwrite' });
-                    }
-                    if (permission !== 'granted') {
-                        baseDirHandle = null;
-                    }
-                }
-            } catch (e) {
-                baseDirHandle = null;
-            }
-
-            if (!baseDirHandle) {
-                try {
-                    baseDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-                    await saveBaseFolderHandle(baseDirHandle);
-                } catch (pickerErr) {
-                    if (pickerErr && pickerErr.name === 'AbortError') {
-                        return; // user cancelled the folder picker - stop quietly
-                    }
-                    console.warn('Folder picker unavailable, falling back to individual downloads:', pickerErr);
-                    baseDirHandle = null;
-                }
-            }
-
-            if (baseDirHandle) {
-                try {
-                    targetDirHandle = await baseDirHandle.getDirectoryHandle(folderName, { create: true });
-                } catch (subDirErr) {
-                    console.warn('Could not create dated subfolder, falling back to individual downloads:', subDirErr);
-                    targetDirHandle = null;
-                }
-            }
-        }
-
         setGeneratingState(true);
         updateGenerationStatus('Preparing template...', 2);
 
@@ -1575,6 +1457,7 @@
             const companyNameVal = globalCompanySelect.value;
             const companyIdVal = globalCompanySelect.options[globalCompanySelect.selectedIndex].dataset.companyId || 'nocompanyid';
             const regionVal = document.getElementById('global_region').value;
+            const dateStrForFileName = getDateDDMMMYYYY();
 
             let engineerIndex = 0;
             for (let record of records) {
@@ -1714,18 +1597,9 @@
                 
                 const safeIqama = (engData.identity || 'noiqama').replace(/[^a-z0-9]/gi, '_');
                 const safeCompanyId = (companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_');
-                const pdfFileName = `${safeCompanyId}_CSDID_${safeIqama}_RXX.pdf`;
+                const pdfFileName = `${safeCompanyId}_intreq_${safeIqama}_${dateStrForFileName}.pdf`;
 
-                if (targetDirHandle) {
-                    const fileHandle = await targetDirHandle.getFileHandle(pdfFileName, { create: true });
-                    const writable = await fileHandle.createWritable();
-                    await writable.write(finalPdfBytes);
-                    await writable.close();
-                } else {
-                    // Fallback: browser can't create a folder directly, so download each
-                    // PDF individually, prefixed with the folder name to keep them grouped.
-                    downloadBytesAsFile(finalPdfBytes, `${folderName}_${pdfFileName}`);
-                }
+                downloadBytesAsFile(finalPdfBytes, pdfFileName);
 
                 individualPdfAttachments.push({
                     fileName: pdfFileName,
@@ -1783,20 +1657,17 @@
                 }
 
                 const sizeWarningThresholdBytes = 20 * 1024 * 1024;
-                const folderLocationNote = targetDirHandle
-                    ? `saved into the folder "${folderName}"`
-                    : `downloaded individually (your browser doesn't support saving directly to a folder, so each file is prefixed with "${folderName}_")`;
                 const sizeWarningNote = totalAttachmentBytes > sizeWarningThresholdBytes
-                    ? `\n\n⚠ Combined, the ${individualPdfAttachments.length} attached PDF(s) total roughly ${(totalAttachmentBytes / (1024 * 1024)).toFixed(1)} MB. Many mail servers (Outlook/Exchange ~20-25MB, Gmail ~25MB) will reject or strip an email over that size — if sending fails, use the PDF files ${folderLocationNote} instead.`
+                    ? `\n\n⚠ Combined, the ${individualPdfAttachments.length} attached PDF(s) total roughly ${(totalAttachmentBytes / (1024 * 1024)).toFixed(1)} MB. Many mail servers (Outlook/Exchange ~20-25MB, Gmail ~25MB) will reject or strip an email over that size — if sending fails, use the downloaded PDF files instead.`
                     : "";
 
                 const emlNote = emlGenerationSucceeded
                     ? `An .eml draft file "${(companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_')}_CSD_Approval_Draft_${detailedTimestamp}.eml" was downloaded, with all ${individualPdfAttachments.length} generated PDF(s) attached individually. It is a ready-to-send draft, so you only need to add a recipient and hit Send. It must be opened with Outlook(classic) provided that you already have a microsoft exchange account(setup by your Company IT admin). (Outlook on Mac and Outlook on the web may not open it the same way.)${sizeWarningNote}`
                     : "The .eml draft could not be generated this time — check the browser console for details.";
 
-                alert(`All ${individualPdfAttachments.length} PDF form(s) have been ${folderLocationNote}.\n\n${emlNote}`);
+                alert(`All ${individualPdfAttachments.length} PDF form(s) have been downloaded to your default Downloads folder.\n\n${emlNote}`);
             } else {
-                alert(`All ${individualPdfAttachments.length} PDF form(s) have been ${targetDirHandle ? `saved into the folder "${folderName}"` : `downloaded individually (prefixed with "${folderName}_")`}.`);
+                alert(`All ${individualPdfAttachments.length} PDF form(s) have been downloaded to your default Downloads folder.`);
             }
 
             localStorage.removeItem(STORAGE_KEY);
