@@ -1453,6 +1453,7 @@
         const individualPdfAttachments = [];
         const totalSteps = records.length + 1; // +1 for the final wrap-up step
         let completedSteps = 0;
+        const compressionReport = [];
 
         try {
             const response = await fetch('prequalform.pdf');
@@ -1575,18 +1576,37 @@
 
                             if (newSize < originalSize) {
                                 credentialsBytes = await blob.arrayBuffer();
+                                const pctSmaller = 100 - (newSize / originalSize) * 100;
                                 console.log(
                                     `${engData.name}: credentials compressed ` +
                                     `${(originalSize / 1024).toFixed(0)}KB -> ${(newSize / 1024).toFixed(0)}KB ` +
-                                    `(${(100 - (newSize / originalSize) * 100).toFixed(0)}% smaller)`
+                                    `(${pctSmaller.toFixed(0)}% smaller)`
                                 );
+                                compressionReport.push({
+                                    name: engineerLabel,
+                                    status: 'compressed',
+                                    originalKB: originalSize / 1024,
+                                    newKB: newSize / 1024,
+                                    pctSmaller
+                                });
                             } else {
                                 // Source was already at/below target DPI - re-encoding didn't help, keep original
                                 credentialsBytes = await originalCredFile.arrayBuffer();
+                                compressionReport.push({
+                                    name: engineerLabel,
+                                    status: 'skipped',
+                                    originalKB: originalSize / 1024,
+                                    newKB: newSize / 1024
+                                });
                             }
                         } catch (compressionErr) {
                             console.warn(`Compression failed for ${engData.name}, using original file:`, compressionErr);
                             credentialsBytes = await originalCredFile.arrayBuffer();
+                            compressionReport.push({
+                                name: engineerLabel,
+                                status: 'failed',
+                                error: (compressionErr && compressionErr.message) || String(compressionErr)
+                            });
                         }
 
                         const credentialsDoc = await PDFLib.PDFDocument.load(credentialsBytes);
@@ -1621,6 +1641,19 @@
 
             completedSteps++;
             updateGenerationStatus('Finishing up...', 100);
+
+            const compressionSummaryLines = compressionReport.map(r => {
+                if (r.status === 'compressed') {
+                    return `  • ${r.name}: ${r.originalKB.toFixed(0)}KB → ${r.newKB.toFixed(0)}KB (${r.pctSmaller.toFixed(0)}% smaller)`;
+                } else if (r.status === 'skipped') {
+                    return `  • ${r.name}: kept original (${r.originalKB.toFixed(0)}KB) — re-encoding at 200 DPI didn't shrink it, so no quality was sacrificed`;
+                } else {
+                    return `  • ${r.name}: compression failed (${r.error}), used original file`;
+                }
+            });
+            const compressionSummary = compressionSummaryLines.length > 0
+                ? `\n\nCredentials attachment compression:\n${compressionSummaryLines.join('\n')}`
+                : '';
 
             if (!skipEml) {
                 updateGenerationStatus('Creating email draft...', 100);
@@ -1674,9 +1707,9 @@
                     ? `An .eml draft file "${(companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_')}_CSD_Approval_Draft_${detailedTimestamp}.eml" was downloaded, with all ${individualPdfAttachments.length} generated PDF(s) attached individually. It is a ready-to-send draft, so you only need to add a recipient and hit Send. It must be opened with Outlook(classic) provided that you already have a microsoft exchange account(setup by your Company IT admin). (Outlook on Mac and Outlook on the web may not open it the same way.)${sizeWarningNote}`
                     : "The .eml draft could not be generated this time — check the browser console for details.";
 
-                alert(`All ${individualPdfAttachments.length} PDF form(s) have been downloaded to your default Downloads folder.\n\n${emlNote}`);
+                alert(`All ${individualPdfAttachments.length} PDF form(s) have been downloaded to your default Downloads folder.\n\n${emlNote}${compressionSummary}`);
             } else {
-                alert(`All ${individualPdfAttachments.length} PDF form(s) have been downloaded to your default Downloads folder.`);
+                alert(`All ${individualPdfAttachments.length} PDF form(s) have been downloaded to your default Downloads folder.${compressionSummary}`);
             }
 
             localStorage.removeItem(STORAGE_KEY);
