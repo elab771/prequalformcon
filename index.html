@@ -579,7 +579,7 @@
                             <div class="exp-split-container">
                                 <input type="text" name="profile_total_exp_yrs[]" placeholder="0" oninput="this.value = this.value.replace(/\D/g, ''); saveFormState()">
                                 <span>Yrs</span>
-                                <input type="text" name="profile_total_exp_mos[]" placeholder="0" oninput="this.value = this.value.replace(/\D/g, ''); saveFormState()">
+                                <input type="text" name="profile_total_exp_mos[]" inputmode="numeric" maxlength="2" placeholder="0" oninput="enforceMonthsLimit(this); saveFormState()">
                                 <span>Mos</span>
                             </div>
                         </td>
@@ -590,7 +590,7 @@
                             <div class="exp-split-container">
                                 <input type="text" name="profile_ksa_exp_yrs[]" placeholder="0" oninput="this.value = this.value.replace(/\D/g, ''); saveFormState()">
                                 <span>Yrs</span>
-                                <input type="text" name="profile_ksa_exp_mos[]" placeholder="0" oninput="this.value = this.value.replace(/\D/g, ''); saveFormState()">
+                                <input type="text" name="profile_ksa_exp_mos[]" inputmode="numeric" maxlength="2" placeholder="0" oninput="enforceMonthsLimit(this); saveFormState()">
                                 <span>Mos</span>
                             </div>
                         </td>
@@ -820,6 +820,17 @@
         let digitsOnly = inputElement.value.replace(/\D/g, '');
         if (digitsOnly.length > maxLength) {
             digitsOnly = digitsOnly.slice(0, maxLength);
+        }
+        inputElement.value = digitsOnly;
+    }
+
+    function enforceMonthsLimit(inputElement) {
+        let digitsOnly = inputElement.value.replace(/\D/g, '');
+        if (digitsOnly.length > 2) {
+            digitsOnly = digitsOnly.slice(0, 2);
+        }
+        if (digitsOnly !== '' && parseInt(digitsOnly, 10) > 12) {
+            digitsOnly = '12';
         }
         inputElement.value = digitsOnly;
     }
