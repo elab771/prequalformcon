@@ -432,7 +432,6 @@
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 </head>
 <body>
 
@@ -773,58 +772,6 @@
 
     const COMPANIES_LIST_PAGE = "companieslist.html";
     let companiesData = null;
-
-    if (window.pdfjsLib) {
-        pdfjsLib.GlobalWorkerOptions.workerSrc =
-            "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
-    }
-
-    /**
-     * Rasterizes each page of a PDF and rebuilds it as a smaller,
-     * JPEG-based PDF. Lossy - text stops being selectable, so this
-     * is only intended for the scanned credentials attachment.
-     */
-    async function compressPdfFile(file, renderScale = 1.1, jpegQuality = 0.95) {
-        const originalBytes = await file.arrayBuffer();
-        const originalSize = originalBytes.byteLength;
-
-        const loadingTask = pdfjsLib.getDocument({ data: originalBytes.slice(0) });
-        const pdfDoc = await loadingTask.promise;
-
-        const outDoc = await PDFLib.PDFDocument.create();
-
-        for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-            const page = await pdfDoc.getPage(pageNum);
-            const viewport = page.getViewport({ scale: renderScale });
-
-            const canvas = document.createElement('canvas');
-            canvas.width = Math.ceil(viewport.width);
-            canvas.height = Math.ceil(viewport.height);
-            const ctx = canvas.getContext('2d');
-
-            await page.render({ canvasContext: ctx, viewport }).promise;
-
-            const jpegDataUrl = canvas.toDataURL('image/jpeg', jpegQuality);
-            const jpegBytes = Uint8Array.from(
-                atob(jpegDataUrl.split(',')[1]),
-                c => c.charCodeAt(0)
-            );
-
-            const jpegImage = await outDoc.embedJpg(jpegBytes);
-            const outPage = outDoc.addPage([canvas.width, canvas.height]);
-            outPage.drawImage(jpegImage, {
-                x: 0, y: 0, width: canvas.width, height: canvas.height
-            });
-
-            canvas.width = 0;
-            canvas.height = 0;
-        }
-
-        const compressedBytes = await outDoc.save();
-        const blob = new Blob([compressedBytes], { type: 'application/pdf' });
-
-        return { blob, originalSize, newSize: blob.size };
-    }
 
     /* ------------------------------------------------------------
        Generation progress panel + button state control
@@ -1554,32 +1501,13 @@
                 if (credentialsInput && credentialsInput.files.length > 0) {
                     try {
                         const originalCredFile = credentialsInput.files[0];
-                        let credentialsBytes;
 
                         updateGenerationStatus(
-                            `Compressing attachment for ${engineerLabel} (${engineerIndex}/${records.length})...`,
+                            `Merging attachment for ${engineerLabel} (${engineerIndex}/${records.length})...`,
                             (completedSteps / totalSteps) * 100
                         );
 
-                        try {
-                            const { blob, originalSize, newSize } =
-                                await compressPdfFile(originalCredFile, 1.1, 0.65);
-
-                            if (newSize < originalSize) {
-                                credentialsBytes = await blob.arrayBuffer();
-                                console.log(
-                                    `${engData.name}: credentials compressed ` +
-                                    `${(originalSize / 1024).toFixed(0)}KB -> ${(newSize / 1024).toFixed(0)}KB`
-                                );
-                            } else {
-                                // compression didn't help (e.g. text-based PDF) - use original
-                                credentialsBytes = await originalCredFile.arrayBuffer();
-                            }
-                        } catch (compressionErr) {
-                            console.warn(`Compression failed for ${engData.name}, using original file:`, compressionErr);
-                            credentialsBytes = await originalCredFile.arrayBuffer();
-                        }
-
+                        const credentialsBytes = await originalCredFile.arrayBuffer();
                         const credentialsDoc = await PDFLib.PDFDocument.load(credentialsBytes);
                         const credentialsPages = await mergedPdf.copyPages(credentialsDoc, credentialsDoc.getPageIndices());
                         credentialsPages.forEach(p => mergedPdf.addPage(p));
