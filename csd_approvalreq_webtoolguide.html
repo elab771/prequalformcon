@@ -25,19 +25,19 @@
             <li><span class="important">(Important)</span> Previous Approval if requesting for upgrade should be attached even if it was a downgrade revision.</li>
             <li>2 buttons are available at rightmost part of the form:
                 <ul>
-                    <li><strong>Generate PDF forms</strong> – Generates a zipped file of the approval forms in pdf of the engineers inputted.
+                    <li><strong>Generate PDF forms</strong> – Generates the approval request forms in PDF, one file per engineer inputted.
                         <ul>
-                            <li>Filename of the generated zipped file containing the PDF files is in this format:<br>
-                            <code>Company ID + "_prequalrequest" + "DateandTimenow(Format ddmmyyhhmm"</code></li>
-                            <li>Filename of the PDF files are in this format:<br>
-                            <code>Company ID + "_CSDID_" + IqamaNo + "_RXX"</code></li>
+                            <li>Filename of each generated PDF file is in this format:<br>
+                            <code>"intreq" + Region + "_" + Company ID + "_" + IqamaNo + "_" + DateNow(Format ddmmmyy)</code></li>
+                            <li>Example: <code>intreqCOA_FAN_1234567890_21Jul26.pdf</code></li>
                         </ul>
                     </li>
-                    <li><strong>Generate Email Draft &amp; PDF forms (in zipped file)</strong> - Generates an eml file which is a draft email format that commonly opens in ms outlook classic provided that there is already a Microsoft exchange account setup in the Computer where you will be accessing this tool.
+                    <li><strong>Generate Email Draft &amp; PDF forms</strong> - Generates an eml file which is a draft email format that commonly opens in ms outlook classic provided that there is already a Microsoft exchange account setup in the Computer where you will be accessing this tool.
                         <ul>
-                            <li>The Same zipped file and PDF files will be generated as stated in 4.a.ii.</li>
+                            <li>The same PDF files described above will also be generated and attached individually to the email draft.</li>
                             <li>The eml file will have a filename in this format:<br>
-                            <code>Company ID + "_CSD_Approval_Draft_" + "DateandTimenow(Format ddmmyyhhmmnn"</code></li>
+                            <code>"draftmail_" + Company ID + "_" + DateandTimeNow(Format ddmmmyyhhmmnn)</code></li>
+                            <li>Example: <code>draftmail_FAN_21Jul26143045.eml</code></li>
                         </ul>
                     </li>
                 </ul>
@@ -54,7 +54,7 @@
             <li>If the .eml file fails to be generated, you can manually create any email draft and manually attach the generated pdf files of the approval requests.</li>
             <li><span class="important">(Important)</span> THE GENERATED PDF FILES ARE NOT TO BE ALTERED, REVISED, AND EDITED ONCE GENERATED.<br>
             If you have mistakenly input incorrect values, you must use the tool again to generate a revised version of the approval request form.</li>
-            <li>The Web tool is limited to inputting only 10 Engineer approval requests only:
+            <li>The Web tool is limited to inputting 10 Engineer approval requests only:
                 <ul>
                     <li>The selected Region will be applicable to the engineers inputted in 1 session.</li>
                     <li>Please take note of this so the interview request will be as per the correct region.</li>
