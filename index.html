@@ -824,17 +824,6 @@
         inputElement.value = digitsOnly;
     }
 
-    function getFormattedTimestamp() {
-        const d = new Date();
-        const pad = (n) => n.toString().padStart(2, '0');
-        const dd = pad(d.getDate());
-        const mm = pad(d.getMonth() + 1);
-        const yy = pad(d.getFullYear() % 100);
-        const hh = pad(d.getHours());
-        const min = pad(d.getMinutes());
-        return `${dd}${mm}${yy}${hh}${min}`;
-    }
-
     function getDetailedTimestamp() {
         const d = new Date();
         const pad = (n) => n.toString().padStart(2, '0');
@@ -847,13 +836,28 @@
         return `${dd}${mm}${yy}${hh}${min}${ss}`;
     }
 
-    function getDateDDMMMYYYY() {
+    // Returns ddmmmyy, e.g. "21Jul26" - used for PDF filenames
+    function getDateDDMMMYY() {
         const d = new Date();
         const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
         const dd = d.getDate().toString().padStart(2, '0');
         const mmm = months[d.getMonth()];
-        const yyyy = d.getFullYear();
-        return `${dd}-${mmm}-${yyyy}`;
+        const yy = (d.getFullYear() % 100).toString().padStart(2, '0');
+        return `${dd}${mmm}${yy}`;
+    }
+
+    // Returns ddmmmyyhhmmnn (nn = seconds), e.g. "21Jul26143045" - used for the .eml draft filename
+    function getDetailedTimestampDDMMMYY() {
+        const d = new Date();
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const pad = (n) => n.toString().padStart(2, '0');
+        const dd = pad(d.getDate());
+        const mmm = months[d.getMonth()];
+        const yy = pad(d.getFullYear() % 100);
+        const hh = pad(d.getHours());
+        const min = pad(d.getMinutes());
+        const nn = pad(d.getSeconds());
+        return `${dd}${mmm}${yy}${hh}${min}${nn}`;
     }
 
     function escapeHtml(value) {
@@ -1420,7 +1424,8 @@
             const companyNameVal = globalCompanySelect.value;
             const companyIdVal = globalCompanySelect.options[globalCompanySelect.selectedIndex].dataset.companyId || 'nocompanyid';
             const regionVal = document.getElementById('global_region').value;
-            const dateStrForFileName = getDateDDMMMYYYY();
+            const safeRegionVal = (regionVal || 'noregion').replace(/[^a-z0-9]/gi, '_');
+            const dateStrForFileName = getDateDDMMMYY();
 
             let engineerIndex = 0;
             for (let record of records) {
@@ -1542,7 +1547,7 @@
                 
                 const safeIqama = (engData.identity || 'noiqama').replace(/[^a-z0-9]/gi, '_');
                 const safeCompanyId = (companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_');
-                const pdfFileName = `${safeCompanyId}_intreq_${safeIqama}_${dateStrForFileName}.pdf`;
+                const pdfFileName = `intreq${safeRegionVal}_${safeCompanyId}_${safeIqama}_${dateStrForFileName}.pdf`;
 
                 downloadBytesAsFile(finalPdfBytes, pdfFileName);
 
@@ -1587,6 +1592,7 @@
 
                 const detailedTimestamp = getDetailedTimestamp();
                 const emailSubjectStr = `${companyIdVal || ''} - for CSD Approval Interview requests_SN${detailedTimestamp}`;
+                const emlDownloadName = `draftmail_${(companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_')}_${getDetailedTimestampDDMMMYY()}.eml`;
 
                 let emlGenerationSucceeded = false;
                 let totalAttachmentBytes = 0;
@@ -1594,7 +1600,6 @@
                     totalAttachmentBytes = individualPdfAttachments.reduce(
                         (sum, att) => sum + Math.ceil(att.base64.length * 0.75), 0
                     );
-                    const emlDownloadName = `${(companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_')}_CSD_Approval_Draft_${detailedTimestamp}.eml`;
                     downloadEmlWithAttachments(emailSubjectStr, emailHtmlStr, individualPdfAttachments, emlDownloadName);
                     emlGenerationSucceeded = true;
                 } catch (emlErr) {
@@ -1607,7 +1612,7 @@
                     : "";
 
                 const emlNote = emlGenerationSucceeded
-                    ? `An .eml draft file "${(companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_')}_CSD_Approval_Draft_${detailedTimestamp}.eml" was downloaded, with all ${individualPdfAttachments.length} generated PDF(s) attached individually. It is a ready-to-send draft, so you only need to add a recipient and hit Send. It must be opened with Outlook(classic) provided that you already have a microsoft exchange account(setup by your Company IT admin). (Outlook on Mac and Outlook on the web may not open it the same way.)${sizeWarningNote}`
+                    ? `An .eml draft file "${emlDownloadName}" was downloaded, with all ${individualPdfAttachments.length} generated PDF(s) attached individually. It is a ready-to-send draft, so you only need to add a recipient and hit Send. It must be opened with Outlook(classic) provided that you already have a microsoft exchange account(setup by your Company IT admin). (Outlook on Mac and Outlook on the web may not open it the same way.)${sizeWarningNote}`
                     : "The .eml draft could not be generated this time — check the browser console for details.";
 
                 alert(`All ${individualPdfAttachments.length} PDF form(s) have been downloaded to your default Downloads folder.\n\n${emlNote}`);
