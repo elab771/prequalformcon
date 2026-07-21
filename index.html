@@ -779,111 +779,6 @@
             "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
     }
 
-    /**
-     * Renders a single pdf.js page to a canvas at the given scale.
-     */
-    async function renderPageAtScale(pdfPage, scale) {
-        const viewport = pdfPage.getViewport({ scale });
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.ceil(viewport.width);
-        canvas.height = Math.ceil(viewport.height);
-        const ctx = canvas.getContext('2d');
-        await pdfPage.render({ canvasContext: ctx, viewport }).promise;
-        return canvas;
-    }
-
-    /**
-     * Downscales an already-rendered canvas to a smaller pixel size.
-     * Reusing a high-res render this way is much cheaper than asking
-     * pdf.js to render the page again from scratch at a lower scale.
-     */
-    function downscaleCanvas(sourceCanvas, targetWidth, targetHeight) {
-        const canvas = document.createElement('canvas');
-        canvas.width = targetWidth;
-        canvas.height = targetHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(sourceCanvas, 0, 0, targetWidth, targetHeight);
-        return canvas;
-    }
-
-    /**
-     * Builds a JPEG-backed PDF from a list of canvases at the given quality.
-     */
-    async function buildPdfFromCanvases(canvases, jpegQuality) {
-        const outDoc = await PDFLib.PDFDocument.create();
-        for (const canvas of canvases) {
-            const jpegDataUrl = canvas.toDataURL('image/jpeg', jpegQuality);
-            const jpegBytes = Uint8Array.from(
-                atob(jpegDataUrl.split(',')[1]),
-                c => c.charCodeAt(0)
-            );
-            const jpegImage = await outDoc.embedJpg(jpegBytes);
-            const outPage = outDoc.addPage([canvas.width, canvas.height]);
-            outPage.drawImage(jpegImage, {
-                x: 0, y: 0, width: canvas.width, height: canvas.height
-            });
-        }
-        const bytes = await outDoc.save();
-        return new Blob([bytes], { type: 'application/pdf' });
-    }
-
-    /**
-     * Tries progressively more aggressive DPI/quality tiers and keeps the
-     * first one that actually shrinks the file by a meaningful amount.
-     * Each page is only rendered once by pdf.js (at the highest tier's
-     * DPI); lower tiers reuse that render and just downscale + re-encode,
-     * so trying several tiers is cheap.
-     *
-     * Falls back to the original bytes untouched if no tier helps (e.g. a
-     * vector/text-only PDF that has nothing raster to compress) - it will
-     * never hand back a file that's bigger than what was uploaded.
-     */
-    async function compressPdfFileAdaptive(file, tiers = [
-        { dpi: 200, quality: 0.92 },
-        { dpi: 150, quality: 0.85 },
-        { dpi: 120, quality: 0.75 }
-    ]) {
-        const originalBytes = await file.arrayBuffer();
-        const originalSize = originalBytes.byteLength;
-
-        const loadingTask = pdfjsLib.getDocument({ data: originalBytes.slice(0) });
-        const pdfDoc = await loadingTask.promise;
-
-        const highestDPI = Math.max(...tiers.map(t => t.dpi));
-        const highestScale = highestDPI / 72; // PDF points are 1/72 inch
-
-        // Render every page once, at the highest tier's resolution.
-        const baseCanvases = [];
-        for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
-            const page = await pdfDoc.getPage(pageNum);
-            baseCanvases.push(await renderPageAtScale(page, highestScale));
-        }
-
-        let result = { blob: null, originalSize, newSize: originalSize, tierUsed: null };
-
-        for (const tier of tiers) {
-            const scaleRatio = tier.dpi / highestDPI;
-            const tierCanvases = baseCanvases.map(base => {
-                if (scaleRatio >= 0.999) return base; // this is the highest tier - use the render as-is
-                const w = Math.max(1, Math.round(base.width * scaleRatio));
-                const h = Math.max(1, Math.round(base.height * scaleRatio));
-                return downscaleCanvas(base, w, h);
-            });
-
-            const blob = await buildPdfFromCanvases(tierCanvases, tier.quality);
-
-            // Require a real, meaningful improvement (>3%) before accepting a tier,
-            // so we don't swap out the original for a barely-smaller re-encode.
-            if (blob.size < originalSize * 0.97) {
-                result = { blob, originalSize, newSize: blob.size, tierUsed: tier };
-                break;
-            }
-        }
-
-        baseCanvases.forEach(c => { c.width = 0; c.height = 0; });
-        return result;
-    }
-
     /* ------------------------------------------------------------
        Generation progress panel + button state control
        ------------------------------------------------------------ */
@@ -1172,6 +1067,16 @@
     function handleFileChange(inputElement) {
         const badge = inputElement.nextElementSibling;
         if (inputElement.files && inputElement.files.length > 0) {
+            const file = inputElement.files[0];
+            const maxSizeBytes = 1.3 * 1024 * 1024; // 1.3MB validation rule
+            
+            if (file.size > maxSizeBytes) {
+                alert("Validation Error: The attached credentials file exceeds the maximum allowed size of 1.3MB. Please attach a smaller file.");
+                inputElement.value = ""; // Clear the selected file
+                badge.style.display = 'none';
+                return;
+            }
+            
             badge.style.display = 'inline';
         } else {
             badge.style.display = 'none';
@@ -1503,7 +1408,6 @@
         const individualPdfAttachments = [];
         const totalSteps = records.length + 1; // +1 for the final wrap-up step
         let completedSteps = 0;
-        const compressionReport = [];
 
         try {
             const response = await fetch('prequalform.pdf');
@@ -1616,50 +1520,11 @@
                         let credentialsBytes;
 
                         updateGenerationStatus(
-                            `Compressing attachment for ${engineerLabel} (${engineerIndex}/${records.length})...`,
+                            `Merging attachment for ${engineerLabel} (${engineerIndex}/${records.length})...`,
                             (completedSteps / totalSteps) * 100
                         );
 
-                        try {
-                            const { blob, originalSize, newSize, tierUsed } =
-                                await compressPdfFileAdaptive(originalCredFile);
-
-                            if (blob && newSize < originalSize) {
-                                credentialsBytes = await blob.arrayBuffer();
-                                const pctSmaller = 100 - (newSize / originalSize) * 100;
-                                console.log(
-                                    `${engData.name}: credentials compressed ` +
-                                    `${(originalSize / 1024).toFixed(0)}KB -> ${(newSize / 1024).toFixed(0)}KB ` +
-                                    `(${pctSmaller.toFixed(0)}% smaller, tier: ${tierUsed.dpi} DPI / q${tierUsed.quality})`
-                                );
-                                compressionReport.push({
-                                    name: engineerLabel,
-                                    status: 'compressed',
-                                    originalKB: originalSize / 1024,
-                                    newKB: newSize / 1024,
-                                    pctSmaller,
-                                    tierUsed
-                                });
-                            } else {
-                                // None of the tiers helped - keep original untouched
-                                credentialsBytes = await originalCredFile.arrayBuffer();
-                                compressionReport.push({
-                                    name: engineerLabel,
-                                    status: 'skipped',
-                                    originalKB: originalSize / 1024,
-                                    newKB: newSize / 1024
-                                });
-                            }
-                        } catch (compressionErr) {
-                            console.warn(`Compression failed for ${engData.name}, using original file:`, compressionErr);
-                            credentialsBytes = await originalCredFile.arrayBuffer();
-                            compressionReport.push({
-                                name: engineerLabel,
-                                status: 'failed',
-                                error: (compressionErr && compressionErr.message) || String(compressionErr)
-                            });
-                        }
-
+                        credentialsBytes = await originalCredFile.arrayBuffer();
                         const credentialsDoc = await PDFLib.PDFDocument.load(credentialsBytes);
                         const credentialsPages = await mergedPdf.copyPages(credentialsDoc, credentialsDoc.getPageIndices());
                         credentialsPages.forEach(p => mergedPdf.addPage(p));
@@ -1692,19 +1557,6 @@
 
             completedSteps++;
             updateGenerationStatus('Finishing up...', 100);
-
-            const compressionSummaryLines = compressionReport.map(r => {
-                if (r.status === 'compressed') {
-                    return `  • ${r.name}: ${r.originalKB.toFixed(0)}KB → ${r.newKB.toFixed(0)}KB (${r.pctSmaller.toFixed(0)}% smaller, ${r.tierUsed.dpi} DPI)`;
-                } else if (r.status === 'skipped') {
-                    return `  • ${r.name}: kept original (${r.originalKB.toFixed(0)}KB) — even the most aggressive tier didn't shrink it, so no quality was sacrificed`;
-                } else {
-                    return `  • ${r.name}: compression failed (${r.error}), used original file`;
-                }
-            });
-            const compressionSummary = compressionSummaryLines.length > 0
-                ? `\n\nCredentials attachment compression:\n${compressionSummaryLines.join('\n')}`
-                : '';
 
             if (!skipEml) {
                 updateGenerationStatus('Creating email draft...', 100);
@@ -1758,9 +1610,9 @@
                     ? `An .eml draft file "${(companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_')}_CSD_Approval_Draft_${detailedTimestamp}.eml" was downloaded, with all ${individualPdfAttachments.length} generated PDF(s) attached individually. It is a ready-to-send draft, so you only need to add a recipient and hit Send. It must be opened with Outlook(classic) provided that you already have a microsoft exchange account(setup by your Company IT admin). (Outlook on Mac and Outlook on the web may not open it the same way.)${sizeWarningNote}`
                     : "The .eml draft could not be generated this time — check the browser console for details.";
 
-                alert(`All ${individualPdfAttachments.length} PDF form(s) have been downloaded to your default Downloads folder.\n\n${emlNote}${compressionSummary}`);
+                alert(`All ${individualPdfAttachments.length} PDF form(s) have been downloaded to your default Downloads folder.\n\n${emlNote}`);
             } else {
-                alert(`All ${individualPdfAttachments.length} PDF form(s) have been downloaded to your default Downloads folder.${compressionSummary}`);
+                alert(`All ${individualPdfAttachments.length} PDF form(s) have been downloaded to your default Downloads folder.`);
             }
 
             localStorage.removeItem(STORAGE_KEY);
