@@ -784,7 +784,7 @@
      * JPEG-based PDF. Lossy - text stops being selectable, so this
      * is only intended for the scanned credentials attachment.
      */
-    async function compressPdfFile(file, renderScale = 1.1, jpegQuality = 0.65) {
+    async function compressPdfFile(file, renderScale = 1.1, jpegQuality = 0.95) {
         const originalBytes = await file.arrayBuffer();
         const originalSize = originalBytes.byteLength;
 
