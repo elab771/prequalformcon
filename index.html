@@ -361,9 +361,78 @@
         .btn-submit-pdfs:hover {
             background-color: #138496;
         }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed !important;
+        }
+
+        .btn-spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+            animation: btn-spin 0.7s linear infinite;
+        }
+
+        @keyframes btn-spin {
+            to { transform: rotate(360deg); }
+        }
+
+        #generation-status-panel {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            background: #eef6ff;
+            border: 1px solid #b6d7ff;
+            border-radius: 4px;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            color: #0b3d66;
+        }
+
+        #generation-status-panel.active {
+            display: flex;
+        }
+
+        .status-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            border: 2px solid #b6d7ff;
+            border-top-color: #0b6fd6;
+            border-radius: 50%;
+            animation: btn-spin 0.8s linear infinite;
+        }
+
+        #generation-status-text {
+            flex-grow: 1;
+        }
+
+        .status-progress-track {
+            width: 160px;
+            height: 6px;
+            background: #d5e8ff;
+            border-radius: 3px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .status-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: #0b6fd6;
+            transition: width 0.25s ease;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 </head>
 <body>
 
@@ -377,12 +446,20 @@
             </div>
             <div class="header-actions">
                 <button type="button" id="btn-add-engineer" class="btn btn-add" onclick="addNewEngineer()">Add Another Engineer</button>
-                <button type="button" class="btn btn-reset" onclick="confirmResetForm()">Clear & Reset Form</button>
-                <button type="button" class="btn btn-submit-pdfs" onclick="handleFormSubmission(event, true)">Generate PDF forms</button>
-                <button type="submit" class="btn btn-submit">Generate Email Draft & PDF forms</button>
+                <button type="button" id="btn-reset-form" class="btn btn-reset" onclick="confirmResetForm()">Clear & Reset Form</button>
+                <button type="button" id="btn-submit-pdfs" class="btn btn-submit-pdfs" onclick="handleFormSubmission(event, true)">Generate PDF forms</button>
+                <button type="submit" id="btn-submit-email" class="btn btn-submit">Generate Email Draft & PDF forms</button>
             </div>
         </div>
         
+        <div id="generation-status-panel">
+            <div class="status-spinner"></div>
+            <div id="generation-status-text">Preparing...</div>
+            <div class="status-progress-track">
+                <div id="generation-status-fill" class="status-progress-fill"></div>
+            </div>
+        </div>
+
         <div class="global-fields-panel">
             <div style="display: flex; align-items: center; gap: 10px; flex-grow: 1;">
                 <label style="font-weight: bold; white-space: nowrap;">Company Name</label>
@@ -697,6 +774,95 @@
     const COMPANIES_LIST_PAGE = "companieslist.html";
     let companiesData = null;
 
+    if (window.pdfjsLib) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+            "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+    }
+
+    /**
+     * Rasterizes each page of a PDF and rebuilds it as a smaller,
+     * JPEG-based PDF. Lossy - text stops being selectable, so this
+     * is only intended for the scanned credentials attachment.
+     */
+    async function compressPdfFile(file, renderScale = 1.4, jpegQuality = 0.55) {
+        const originalBytes = await file.arrayBuffer();
+        const originalSize = originalBytes.byteLength;
+
+        const loadingTask = pdfjsLib.getDocument({ data: originalBytes.slice(0) });
+        const pdfDoc = await loadingTask.promise;
+
+        const outDoc = await PDFLib.PDFDocument.create();
+
+        for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+            const page = await pdfDoc.getPage(pageNum);
+            const viewport = page.getViewport({ scale: renderScale });
+
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.ceil(viewport.width);
+            canvas.height = Math.ceil(viewport.height);
+            const ctx = canvas.getContext('2d');
+
+            await page.render({ canvasContext: ctx, viewport }).promise;
+
+            const jpegDataUrl = canvas.toDataURL('image/jpeg', jpegQuality);
+            const jpegBytes = Uint8Array.from(
+                atob(jpegDataUrl.split(',')[1]),
+                c => c.charCodeAt(0)
+            );
+
+            const jpegImage = await outDoc.embedJpg(jpegBytes);
+            const outPage = outDoc.addPage([canvas.width, canvas.height]);
+            outPage.drawImage(jpegImage, {
+                x: 0, y: 0, width: canvas.width, height: canvas.height
+            });
+
+            canvas.width = 0;
+            canvas.height = 0;
+        }
+
+        const compressedBytes = await outDoc.save();
+        const blob = new Blob([compressedBytes], { type: 'application/pdf' });
+
+        return { blob, originalSize, newSize: blob.size };
+    }
+
+    /* ------------------------------------------------------------
+       Generation progress panel + button state control
+       ------------------------------------------------------------ */
+    const GENERATION_BUTTON_IDS = ['btn-add-engineer', 'btn-reset-form', 'btn-submit-pdfs', 'btn-submit-email'];
+
+    function setGeneratingState(isGenerating) {
+        const panel = document.getElementById('generation-status-panel');
+        panel.classList.toggle('active', isGenerating);
+
+        GENERATION_BUTTON_IDS.forEach(id => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.disabled = isGenerating;
+        });
+
+        const pdfBtn = document.getElementById('btn-submit-pdfs');
+        const emailBtn = document.getElementById('btn-submit-email');
+
+        if (isGenerating) {
+            if (pdfBtn && !pdfBtn.dataset.originalLabel) pdfBtn.dataset.originalLabel = pdfBtn.textContent;
+            if (emailBtn && !emailBtn.dataset.originalLabel) emailBtn.dataset.originalLabel = emailBtn.textContent;
+            if (pdfBtn) pdfBtn.innerHTML = '<span class="btn-spinner"></span>Generating...';
+            if (emailBtn) emailBtn.innerHTML = '<span class="btn-spinner"></span>Generating...';
+        } else {
+            if (pdfBtn && pdfBtn.dataset.originalLabel) pdfBtn.textContent = pdfBtn.dataset.originalLabel;
+            if (emailBtn && emailBtn.dataset.originalLabel) emailBtn.textContent = emailBtn.dataset.originalLabel;
+            updateGenerationStatus('', 0);
+        }
+    }
+
+    function updateGenerationStatus(text, percent) {
+        const textEl = document.getElementById('generation-status-text');
+        const fillEl = document.getElementById('generation-status-fill');
+        if (textEl) textEl.textContent = text;
+        if (fillEl) fillEl.style.width = Math.max(0, Math.min(100, percent)) + '%';
+    }
+
     function enforceNumericLimit(inputElement, maxLength = 10) {
         let digitsOnly = inputElement.value.replace(/\D/g, '');
         if (digitsOnly.length > maxLength) {
@@ -788,6 +954,21 @@
         document.body.appendChild(emlLinkElement);
         emlLinkElement.click();
         document.body.removeChild(emlLinkElement);
+    }
+
+    function downloadBytesAsFile(bytes, fileName, mimeType = 'application/pdf') {
+        const blob = new Blob([bytes], { type: mimeType });
+        const linkElement = document.createElement('a');
+        linkElement.href = URL.createObjectURL(blob);
+        linkElement.download = fileName;
+        document.body.appendChild(linkElement);
+        linkElement.click();
+        document.body.removeChild(linkElement);
+        URL.revokeObjectURL(linkElement.href);
+    }
+
+    function supportsFolderSaving() {
+        return typeof window.showDirectoryPicker === 'function';
     }
 
     async function loadCompaniesList() {
@@ -1253,8 +1434,37 @@
             return;
         }
 
-        const zip = new JSZip();
+        // Work out the target folder name up front (needed before we can prompt for a save location)
+        const globalCompanySelectEarly = document.getElementById('global_company');
+        const companyIdValEarly = globalCompanySelectEarly.options[globalCompanySelectEarly.selectedIndex].dataset.companyId || 'nocompanyid';
+        const safeCompanyIdEarly = (companyIdValEarly || 'nocompanyid').replace(/[^a-z0-9]/gi, '_');
+        const timestamp = getFormattedTimestamp();
+        const folderName = `${safeCompanyIdEarly}_prequalrequest${timestamp}`;
+
+        const canSaveToFolder = supportsFolderSaving();
+        let targetDirHandle = null;
+
+        if (canSaveToFolder) {
+            // IMPORTANT: this must happen before any other await, so it still
+            // counts as a direct response to the user's click (browser requirement).
+            try {
+                const parentDirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                targetDirHandle = await parentDirHandle.getDirectoryHandle(folderName, { create: true });
+            } catch (pickerErr) {
+                if (pickerErr && pickerErr.name === 'AbortError') {
+                    return; // user cancelled the folder picker - stop quietly
+                }
+                console.warn('Folder picker unavailable, falling back to individual downloads:', pickerErr);
+                targetDirHandle = null;
+            }
+        }
+
+        setGeneratingState(true);
+        updateGenerationStatus('Preparing template...', 2);
+
         const individualPdfAttachments = [];
+        const totalSteps = records.length + 1; // +1 for the final wrap-up step
+        let completedSteps = 0;
 
         try {
             const response = await fetch('prequalform.pdf');
@@ -1268,7 +1478,14 @@
             const companyIdVal = globalCompanySelect.options[globalCompanySelect.selectedIndex].dataset.companyId || 'nocompanyid';
             const regionVal = document.getElementById('global_region').value;
 
+            let engineerIndex = 0;
             for (let record of records) {
+                engineerIndex++;
+                const engineerLabel = record.querySelector('[name="profile_name[]"]').value.trim() || `Engineer ${engineerIndex}`;
+                updateGenerationStatus(
+                    `Filling form for ${engineerLabel} (${engineerIndex}/${records.length})...`,
+                    (completedSteps / totalSteps) * 100
+                );
                 const credentialsInput = record.querySelector('[name="profile_credentials[]"]');
 
                 const engData = {
@@ -1355,7 +1572,33 @@
 
                 if (credentialsInput && credentialsInput.files.length > 0) {
                     try {
-                        const credentialsBytes = await readAsArrayBuffer(credentialsInput.files[0]);
+                        const originalCredFile = credentialsInput.files[0];
+                        let credentialsBytes;
+
+                        updateGenerationStatus(
+                            `Compressing attachment for ${engineerLabel} (${engineerIndex}/${records.length})...`,
+                            (completedSteps / totalSteps) * 100
+                        );
+
+                        try {
+                            const { blob, originalSize, newSize } =
+                                await compressPdfFile(originalCredFile, 1.4, 0.55);
+
+                            if (newSize < originalSize) {
+                                credentialsBytes = await blob.arrayBuffer();
+                                console.log(
+                                    `${engData.name}: credentials compressed ` +
+                                    `${(originalSize / 1024).toFixed(0)}KB -> ${(newSize / 1024).toFixed(0)}KB`
+                                );
+                            } else {
+                                // compression didn't help (e.g. text-based PDF) - use original
+                                credentialsBytes = await originalCredFile.arrayBuffer();
+                            }
+                        } catch (compressionErr) {
+                            console.warn(`Compression failed for ${engData.name}, using original file:`, compressionErr);
+                            credentialsBytes = await originalCredFile.arrayBuffer();
+                        }
+
                         const credentialsDoc = await PDFLib.PDFDocument.load(credentialsBytes);
                         const credentialsPages = await mergedPdf.copyPages(credentialsDoc, credentialsDoc.getPageIndices());
                         credentialsPages.forEach(p => mergedPdf.addPage(p));
@@ -1364,33 +1607,42 @@
                     }
                 }
 
+                updateGenerationStatus(
+                    `Building PDF for ${engineerLabel} (${engineerIndex}/${records.length})...`,
+                    (completedSteps / totalSteps) * 100
+                );
+
                 const finalPdfBytes = await mergedPdf.save();
                 
                 const safeIqama = (engData.identity || 'noiqama').replace(/[^a-z0-9]/gi, '_');
                 const safeCompanyId = (companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_');
                 const pdfFileName = `${safeCompanyId}_CSDID_${safeIqama}_RXX.pdf`;
-                zip.file(pdfFileName, finalPdfBytes);
+
+                if (targetDirHandle) {
+                    const fileHandle = await targetDirHandle.getFileHandle(pdfFileName, { create: true });
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(finalPdfBytes);
+                    await writable.close();
+                } else {
+                    // Fallback: browser can't create a folder directly, so download each
+                    // PDF individually, prefixed with the folder name to keep them grouped.
+                    downloadBytesAsFile(finalPdfBytes, `${folderName}_${pdfFileName}`);
+                }
 
                 individualPdfAttachments.push({
                     fileName: pdfFileName,
                     mimeType: "application/pdf",
                     base64: uint8ArrayToBase64(finalPdfBytes)
                 });
+
+                completedSteps++;
             }
 
-            const timestamp = getFormattedTimestamp();
-            const safeCompanyIdZ = (companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_');
-            const zipFileName = `${safeCompanyIdZ}_prequalrequest${timestamp}.zip`;
-
-            const zipContentBlob = await zip.generateAsync({ type: "blob" });
-            const zipLinkElement = document.createElement('a');
-            zipLinkElement.href = URL.createObjectURL(zipContentBlob);
-            zipLinkElement.download = zipFileName;
-            document.body.appendChild(zipLinkElement);
-            zipLinkElement.click();
-            document.body.removeChild(zipLinkElement);
+            completedSteps++;
+            updateGenerationStatus('Finishing up...', 100);
 
             if (!skipEml) {
+                updateGenerationStatus('Creating email draft...', 100);
                 const tableHeaders = ["SN", "Name", "Status", "Region", "Location", "Remarks"];
 
                 let emailHtmlStr = `<p>Dear,</p><p>Good day. This is to kindly request for the approval interviews of the following Engineers available in ${escapeHtml(regionVal)}:</p>`;
@@ -1433,17 +1685,20 @@
                 }
 
                 const sizeWarningThresholdBytes = 20 * 1024 * 1024;
+                const folderLocationNote = targetDirHandle
+                    ? `saved into the folder "${folderName}"`
+                    : `downloaded individually (your browser doesn't support saving directly to a folder, so each file is prefixed with "${folderName}_")`;
                 const sizeWarningNote = totalAttachmentBytes > sizeWarningThresholdBytes
-                    ? `\n\n⚠ Combined, the ${individualPdfAttachments.length} attached PDF(s) total roughly ${(totalAttachmentBytes / (1024 * 1024)).toFixed(1)} MB. Many mail servers (Outlook/Exchange ~20-25MB, Gmail ~25MB) will reject or strip an email over that size — if sending fails, use the zip file instead.`
+                    ? `\n\n⚠ Combined, the ${individualPdfAttachments.length} attached PDF(s) total roughly ${(totalAttachmentBytes / (1024 * 1024)).toFixed(1)} MB. Many mail servers (Outlook/Exchange ~20-25MB, Gmail ~25MB) will reject or strip an email over that size — if sending fails, use the PDF files ${folderLocationNote} instead.`
                     : "";
 
                 const emlNote = emlGenerationSucceeded
-                    ? `An .eml draft file "${(companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_')}_CSD_Approval_Draft_${detailedTimestamp}.eml" was downloaded, with all ${individualPdfAttachments.length} generated PDF(s) attached individually (not zipped). It is a ready-to-send draft, so you only need to add a recipient and hit Send. It must be opened with Outlook(classic) provided that you already have a microsoft exchange account(setup by your Company IT admin). (Outlook on Mac and Outlook on the web may not open it the same way.)${sizeWarningNote}`
+                    ? `An .eml draft file "${(companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_')}_CSD_Approval_Draft_${detailedTimestamp}.eml" was downloaded, with all ${individualPdfAttachments.length} generated PDF(s) attached individually. It is a ready-to-send draft, so you only need to add a recipient and hit Send. It must be opened with Outlook(classic) provided that you already have a microsoft exchange account(setup by your Company IT admin). (Outlook on Mac and Outlook on the web may not open it the same way.)${sizeWarningNote}`
                     : "The .eml draft could not be generated this time — check the browser console for details.";
 
-                alert(`The zipped file "${zipFileName}" has been downloaded.\n\n${emlNote}\n\nIf the .eml doesn't open as expected, the zip is still ready in your Downloads folder to attach manually.`);
+                alert(`All ${individualPdfAttachments.length} PDF form(s) have been ${folderLocationNote}.\n\n${emlNote}`);
             } else {
-                alert(`The zipped file "${zipFileName}" containing the PDF forms has been downloaded successfully.`);
+                alert(`All ${individualPdfAttachments.length} PDF form(s) have been ${targetDirHandle ? `saved into the folder "${folderName}"` : `downloaded individually (prefixed with "${folderName}_")`}.`);
             }
 
             localStorage.removeItem(STORAGE_KEY);
@@ -1451,6 +1706,8 @@
         } catch (globalFaultException) {
             console.error("Batch processing operation failure parameters:", globalFaultException);
             alert("An error occurred during multi-record compilation execution pipelines. Check browser workspace log.");
+        } finally {
+            setGeneratingState(false);
         }
     }
 
