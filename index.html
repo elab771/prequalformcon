@@ -325,6 +325,13 @@
             flex-shrink: 0;
         }
 
+        .qual-tables-row {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            width: 100%;
+        }
+
         .btn {
             padding: 10px 20px;
             border: none;
@@ -624,20 +631,98 @@
             <div class="table-gap"></div>
 
             <div class="qualifications-layout-wrapper">
-                <div style="width: 100%;">
-                    <table>
+                <div class="qual-tables-row">
+                    <table class="qual-table qual-table-1">
                         <thead>
                             <tr>
                                 <th style="width: 170px;"></th>
                                 <th style="width: 85px;">No Voltage<br>Level</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Batteries&Chargers</td>
+                                <td class="qual-cell"><select name="q_batteries[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                            <tr>
+                                <td>ACDB&DCDB</td>
+                                <td class="qual-cell"><select name="q_acdb_dcdb[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                            <tr>
+                                <td>Aux./Trip Relays&MCCB</td>
+                                <td class="qual-cell"><select name="q_aux_relays[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                            <tr>
+                                <td>Meters</td>
+                                <td class="qual-cell"><select name="q_meters[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                            <tr>
+                                <td>OHTL</td>
+                                <td class="qual-cell"><select name="q_ohtl[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                            <tr>
+                                <td>Live Substations</td>
+                                <td class="qual-cell"><select name="q_live_substations[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="table-gap"></div>
+
+                    <table class="qual-table qual-table-2">
+                        <thead>
+                            <tr>
                                 <th style="width: 180px;"></th>
                                 <th style="width: 65px;">MV</th>
                                 <th style="width: 65px;">HV</th>
                                 <th style="width: 65px;">EHV</th>
-                                <th style="width: 210px;"></th>
-                                <th style="width: 65px;">MV</th>
-                                <th style="width: 65px;">HV</th>
-                                <th style="width: 65px;">EHV</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Power Transformer</td>
+                                <td class="qual-cell"><select name="q_tx_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_tx_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_tx_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                            <tr>
+                                <td>Shunt Reactor</td>
+                                <td class="qual-cell"><select name="q_reactor_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_reactor_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_reactor_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                            <tr>
+                                <td>Capacitor</td>
+                                <td class="qual-cell"><select name="q_capacitor_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_capacitor_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_capacitor_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                            <tr>
+                                <td>Power Cable Electrical Tests</td>
+                                <td class="qual-cell"><select name="q_cable_elec_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_cable_elec_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_cable_elec_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                            <tr>
+                                <td>Power Cable HV Test</td>
+                                <td class="qual-cell"><select name="q_cable_hv_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_cable_hv_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_cable_hv_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                            <tr>
+                                <td>Power Cable PD Test</td>
+                                <td class="qual-cell"><select name="q_cable_pd_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_cable_pd_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_cable_pd_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="table-gap"></div>
+
+                    <table class="qual-table qual-table-3">
+                        <thead>
+                            <tr>
                                 <th style="width: 210px;"></th>
                                 <th style="width: 65px;">MV</th>
                                 <th style="width: 65px;">HV</th>
@@ -646,96 +731,87 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td>Batteries&Chargers</td>
-                                <td class="qual-cell"><select name="q_batteries[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td>Power Transformer</td>
-                                <td class="qual-cell"><select name="q_tx_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_tx_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_tx_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td>Switchgear Equipment</td>
                                 <td class="qual-cell"><select name="q_sg_eq_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td class="qual-cell"><select name="q_sg_eq_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td class="qual-cell"><select name="q_sg_eq_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                            <tr>
+                                <td>Switchgear HV Test</td>
+                                <td class="qual-cell"><select name="q_sg_hv_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_sg_hv_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_sg_hv_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                            <tr>
+                                <td>Switchgear PD Test</td>
+                                <td class="qual-cell"><select name="q_sg_pd_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_sg_pd_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_sg_pd_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                            <tr>
+                                <td>Scheme Check</td>
+                                <td class="qual-cell"><select name="q_scheme_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_scheme_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_scheme_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                            <tr>
+                                <td>CT Primary&Secondary Injection</td>
+                                <td class="qual-cell"><select name="q_ct_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_ct_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_ct_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                            <tr>
+                                <td>VT Secondary Injection</td>
+                                <td class="qual-cell"><select name="q_vt_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_vt_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                                <td class="qual-cell"><select name="q_vt_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="table-gap"></div>
+
+                    <table class="qual-table qual-table-4">
+                        <thead>
+                            <tr>
+                                <th style="width: 210px;"></th>
+                                <th style="width: 65px;">MV</th>
+                                <th style="width: 65px;">HV</th>
+                                <th style="width: 65px;">EHV</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
                                 <td>Simple Protection Relays</td>
                                 <td class="qual-cell"><select name="q_simple_relay_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td class="qual-cell"><select name="q_simple_relay_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td class="qual-cell"><select name="q_simple_relay_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                             </tr>
                             <tr>
-                                <td>ACDB&DCDB</td>
-                                <td class="qual-cell"><select name="q_acdb_dcdb[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td>Shunt Reactor</td>
-                                <td class="qual-cell"><select name="q_reactor_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_reactor_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_reactor_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td>Switchgear HV Test</td>
-                                <td class="qual-cell"><select name="q_sg_hv_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_sg_hv_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_sg_hv_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td>Advanced Protection&Control IEDs</td>
                                 <td class="qual-cell"><select name="q_adv_ied_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td class="qual-cell"><select name="q_adv_ied_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td class="qual-cell"><select name="q_adv_ied_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                             </tr>
                             <tr>
-                                <td>Aux./Trip Relays&MCCB</td>
-                                <td class="qual-cell"><select name="q_aux_relays[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td>Capacitor</td>
-                                <td class="qual-cell"><select name="q_capacitor_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_capacitor_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_capacitor_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td>Switchgear PD Test</td>
-                                <td class="qual-cell"><select name="q_sg_pd_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_sg_pd_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_sg_pd_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td>Stability Test</td>
                                 <td class="qual-cell"><select name="q_stability_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td class="qual-cell"><select name="q_stability_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td class="qual-cell"><select name="q_stability_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                             </tr>
                             <tr>
-                                <td>Meters</td>
-                                <td class="qual-cell"><select name="q_meters[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td>Power Cable Electrical Tests</td>
-                                <td class="qual-cell"><select name="q_cable_elec_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_cable_elec_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_cable_elec_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td>Scheme Check</td>
-                                <td class="qual-cell"><select name="q_scheme_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_scheme_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_scheme_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td>End To End Test</td>
                                 <td class="black-cell"></td>
                                 <td class="qual-cell"><select name="q_e2e_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td class="qual-cell"><select name="q_e2e_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                             </tr>
                             <tr>
-                                <td>OHTL</td>
-                                <td class="qual-cell"><select name="q_ohtl[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td>Power Cable HV Test</td>
-                                <td class="qual-cell"><select name="q_cable_hv_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_cable_hv_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_cable_hv_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td>CT Primary&Secondary Injection</td>
-                                <td class="qual-cell"><select name="q_ct_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_ct_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_ct_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td>Final Trip Test</td>
                                 <td class="qual-cell"><select name="q_trip_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td class="qual-cell"><select name="q_trip_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td class="qual-cell"><select name="q_trip_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                             </tr>
                             <tr>
-                                <td>Live Substations</td>
-                                <td class="qual-cell"><select name="q_live_substations[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td>Power Cable PD Test</td>
-                                <td class="qual-cell"><select name="q_cable_pd_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_cable_pd_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_cable_pd_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td>VT Secondary Injection</td>
-                                <td class="qual-cell"><select name="q_vt_mv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_vt_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
-                                <td class="qual-cell"><select name="q_vt_ehv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
                                 <td>Site Coordinator</td>
                                 <td class="black-cell"></td>
                                 <td class="qual-cell"><select name="q_coordinator_hv[]" class="qual-select"><option value="YES">YES</option><option value="NO" selected>NO</option></select></td>
