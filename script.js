@@ -503,8 +503,8 @@ async function getPopulatedPDFBytes(data, companyName, templateBytes) {
     const pdfDoc = await PDFLib.PDFDocument.load(templateBytes);
     const form = pdfDoc.getForm();
 
-    // 1. Embed the standard bold font natively supported by pdf-lib
-    const helveticaBold = await pdfDoc.embedStandardFont(PDFLib.StandardFonts.HelveticaBold);
+// 1. Embed the standard bold font using the native string identifier
+const helveticaBold = await pdfDoc.embedFont('Helvetica-Bold');
 
     const safeSetText = (fieldName, value) => {
         try {
@@ -554,8 +554,8 @@ async function getPopulatedPDFBytes(data, companyName, templateBytes) {
         safeSetText(fieldName, conditionalContextValue(value));
     });
 
-    // 2. Force pdf-lib to redraw all fields using the embedded bold font BEFORE locking
-    form.updateFieldAppearances({ font: helveticaBold });
+    // 2. Pass the font object DIRECTLY without the curly braces
+    form.updateFieldAppearances(helveticaBold);
 
     form.getFields().forEach(field => {
         const fieldName = field.getName();
