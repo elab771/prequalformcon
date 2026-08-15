@@ -502,17 +502,21 @@ function confirmResetForm() {
 async function getPopulatedPDFBytes(data, companyName, templateBytes) {
     const pdfDoc = await PDFLib.PDFDocument.load(templateBytes);
     const form = pdfDoc.getForm();
+    const firstPage = pdfDoc.getPages()[0];
 
     // 1. Safely embed Helvetica-Bold
     let customFont = null;
     try {
         customFont = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
     } catch (err) {
-        console.warn('Could not embed HelveticaBold, falling back to standard appearance:', err);
+        console.warn('Could not embed HelveticaBold:', err);
     }
 
-    // 2. Set text and apply bold formatting individually per field
-    const safeSetText = (fieldName, value) => {
+    const normalizeValue = (value) => (value ?? '').toString().trim();
+    const conditionalContextValue = (value) => normalizeValue(value).toUpperCase() === 'NO' ? 'NO' : '';
+
+    // Helper for Contractor (primary) fields
+    const safeSetPrimaryText = (fieldName, value) => {
         try {
             const field = form.getTextField(fieldName);
             if (field) {
@@ -520,9 +524,7 @@ async function getPopulatedPDFBytes(data, companyName, templateBytes) {
                 if (customFont) {
                     try {
                         field.updateAppearances(customFont);
-                    } catch (e) {
-                        // Suppress individual layout calculation warnings
-                    }
+                    } catch (e) {}
                 }
             }
         } catch (e) {
@@ -530,9 +532,55 @@ async function getPopulatedPDFBytes(data, companyName, templateBytes) {
         }
     };
 
-    const normalizeValue = (value) => (value ?? '').toString().trim();
-    const conditionalContextValue = (value) => normalizeValue(value).toUpperCase() === 'NO' ? normalizeValue(value) : '';
+    // Helper for CSD Approval fields (Font size 13, Red for NO, Blue highlight for blank)
+    const safeSetContextField = (fieldName, rawValue) => {
+        try {
+            const field = form.getTextField(fieldName);
+            if (!field) return;
 
+            const finalVal = conditionalContextValue(rawValue);
+            field.setText(finalVal);
+            field.setFontSize(13);
+
+            const fontName = customFont ? customFont.name : 'Helvetica-Bold';
+            const isNo = finalVal.toUpperCase() === 'NO';
+
+            // Set Red text if NO, Black if other
+            const colorOperator = isNo ? '1 0 0 rg' : '0 0 0 rg';
+            try {
+                field.acroField.dict.set(
+                    PDFLib.PDFName.of('DA'),
+                    PDFLib.PDFString.of(`/${fontName} 13 Tf ${colorOperator}`)
+                );
+            } catch (e) {}
+
+            if (customFont) {
+                try {
+                    field.updateAppearances(customFont);
+                } catch (e) {}
+            }
+
+            // Draw 75% transparent blue highlight on blank CSD fields
+            if (finalVal === '') {
+                const widgets = field.acroField.getWidgets();
+                widgets.forEach(widget => {
+                    const rect = widget.getRectangle();
+                    firstPage.drawRectangle({
+                        x: rect.x,
+                        y: rect.y,
+                        width: rect.width,
+                        height: rect.height,
+                        color: PDFLib.rgb(0.2, 0.5, 1.0), // Blue
+                        opacity: 0.25                     // 75% transparency
+                    });
+                });
+            }
+        } catch (e) {
+            console.warn(`Context field update skipped for: "${fieldName}"`);
+        }
+    };
+
+    // Populate Contractor Column
     const primaryFieldMap = {
         txtengrname: data.name,
         txtnationality: data.nationality,
@@ -546,11 +594,12 @@ async function getPopulatedPDFBytes(data, companyName, templateBytes) {
     };
 
     Object.entries(primaryFieldMap).forEach(([fieldName, value]) => {
-        safeSetText(fieldName, value);
+        safeSetPrimaryText(fieldName, value);
     });
 
-    data.matrix.forEach(item => safeSetText(item.pdfField, item.value));
+    data.matrix.forEach(item => safeSetPrimaryText(item.pdfField, item.value));
 
+    // Populate CSD Approval Column
     const contextFieldMap = {
         ctxtengrname: data.name,
         ctxtnationality: data.nationality,
@@ -566,10 +615,10 @@ async function getPopulatedPDFBytes(data, companyName, templateBytes) {
     data.matrix.forEach(item => contextFieldMap[`c${item.pdfField}`] = item.value);
 
     Object.entries(contextFieldMap).forEach(([fieldName, value]) => {
-        safeSetText(fieldName, conditionalContextValue(value));
+        safeSetContextField(fieldName, value);
     });
 
-    // 3. Lock fields to read-only as required
+    // Make filled/contractor fields read-only while keeping blank CSD fields editable
     form.getFields().forEach(field => {
         const fieldName = field.getName();
         const isContextField = fieldName.startsWith('ctxt');
