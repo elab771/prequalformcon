@@ -2,9 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Companies List - Data Source (Do Not Delete)</title>
+<title>Companies List - Data Source</title>
 <style>
+    /* These styles apply to the raw data table */
     body { font-family: Arial, sans-serif; margin: 20px; }
+    table { border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
+    th, td { border: 1px solid #999; padding: 6px 10px; text-align: left; }
+    th { background: #f0f0f0; cursor: pointer; user-select: none; }
+    th:hover { background: #e0e0e0; }
+    th.sort-asc::after { content: " ▲"; font-size: 10px; margin-left: 5px; }
+    th.sort-desc::after { content: " ▼"; font-size: 10px; margin-left: 5px; }
+    
+    /* --- EDITOR UI STYLES (Only visible when managing the list) --- */
     .instructions {
         background: #fff3cd;
         border: 1px solid #ffe08a;
@@ -13,27 +22,43 @@
         font-size: 13px;
         line-height: 1.6;
     }
-    table { border-collapse: collapse; font-size: 13px; }
-    th, td { border: 1px solid #999; padding: 6px 10px; text-align: left; }
-    th { background: #f0f0f0; }
+    .editor-controls { margin-bottom: 15px; display: flex; gap: 10px; }
+    .btn { padding: 8px 15px; font-weight: bold; cursor: pointer; border: none; border-radius: 4px; color: white; }
+    .btn-add { background-color: #28a745; }
+    .btn-copy { background-color: #007bff; }
+    .btn-delete { background-color: #dc3545; padding: 4px 8px; font-size: 11px; }
+    .editable-cell { cursor: text; background-color: #f8f9fa; outline: none; }
+    .editable-cell:focus { background-color: #ffffff; box-shadow: inset 0 0 0 2px #007bff; }
+    th.editor-only { cursor: default; background: #f0f0f0; }
+    th.editor-only:hover { background: #f0f0f0; }
+    #output-container { display: none; margin-top: 20px; }
+    #code-output { width: 100%; height: 200px; font-family: monospace; font-size: 12px; }
 </style>
 </head>
 <body>
 
-<div class="instructions">
-    <strong>This page is a data source for the Engineers Qualification Tracker's Company Name dropdown.</strong><br>
-    It is not linked from the main form and does not need to be shared with anyone &mdash; it just needs to
-    stay hosted in the <u>same folder</u> as the main form file, under the exact filename
-    <code>companieslist.html</code>.<br><br>
-    <strong>To add, edit, or remove a company:</strong> add, edit, or delete a <code>&lt;tr&gt;&hellip;&lt;/tr&gt;</code>
-    row inside the <code>&lt;tbody&gt;</code> below, keeping the same three columns in the same order
-    (Company Name, Company ID, Voltage Level). Do not change the table's <code>id="companiesTable"</code>
-    or the column order &mdash; the main form reads this table directly.
+<div class="instructions" id="instruction-block">
+    <strong>Visual Editor Active</strong><br>
+    Click on any cell to edit it. Click on table headers to sort columns. Use the buttons below to add or remove companies. When you are finished, click <strong>"Generate & Copy HTML"</strong> and paste the result into your repository file.
+</div>
+
+<div class="editor-controls" id="editor-controls">
+    <button class="btn btn-add" onclick="addRow()">+ Add New Company</button>
+    <button class="btn btn-copy" onclick="generateAndCopy()">📋 Generate & Copy HTML</button>
+</div>
+
+<div id="output-container">
+    <strong style="color: #28a745;">✓ HTML Copied to Clipboard!</strong> Paste this into your <code>companieslist.html</code> file in your repository:
+    <textarea id="code-output" readonly></textarea>
 </div>
 
 <table id="companiesTable">
   <thead>
-    <tr><th>Company Name</th><th>Company ID</th><th>Voltage Level</th></tr>
+    <tr>
+        <th>Company Name</th>
+        <th>Company ID</th>
+        <th>Voltage Level</th>
+    </tr>
   </thead>
   <tbody>
     <tr><td>Advanced Electricity Contracting Co.</td><td>AEE</td><td>up to 132kV</td></tr>
@@ -90,16 +115,182 @@
     <tr><td>Tran Ji Trading and Contracting Company</td><td>TJT</td><td>up to 132kV</td></tr>
     <tr><td>Voltech Mohawarean Engineering Contractor Co.</td><td>VOL</td><td>up to 132kV</td></tr>
     <tr><td>Wahah Electric Supply Company of Saudi Arabia (WESCOSA)</td><td>WES</td><td>up to 132kV</td></tr>
-    <tr><td></td><td></td><td></td></tr>
-    <tr><td></td><td></td><td></td></tr>
-    <tr><td></td><td></td><td></td></tr>
-    <tr><td></td><td></td><td></td></tr>
-    <tr><td></td><td></td><td></td></tr>
-    <tr><td></td><td></td><td></td></tr>
-    <tr><td></td><td></td><td></td></tr>
-    <tr><td></td><td></td><td></td></tr>
   </tbody>
 </table>
 
+<script>
+    // 1. Initialize the table for visual editing when the page loads
+    document.addEventListener('DOMContentLoaded', () => {
+        const table = document.getElementById('companiesTable');
+        
+        // Add "Action" header
+        const thead = table.querySelector('thead tr');
+        const actionTh = document.createElement('th');
+        actionTh.className = 'editor-only';
+        actionTh.innerText = 'Action';
+        actionTh.title = '';
+        thead.appendChild(actionTh);
+
+        // Make existing cells editable and add delete buttons
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(tr => {
+            // Remove empty blank rows from the bottom automatically
+            const cells = Array.from(tr.querySelectorAll('td'));
+            if (cells.every(td => td.innerText.trim() === '')) {
+                tr.remove();
+                return;
+            }
+            makeRowEditable(tr);
+        });
+
+        // Initialize Sorting
+        const headers = table.querySelectorAll('thead th:not(.editor-only)');
+        headers.forEach((th, index) => {
+            th.title = "Click to sort";
+            th.addEventListener('click', () => {
+                const tbody = table.querySelector('tbody');
+                const rowArray = Array.from(tbody.querySelectorAll('tr'));
+                const isAsc = th.classList.contains('sort-asc');
+                
+                // Clear all sorting classes
+                headers.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+                
+                // Toggle direction and class
+                th.classList.add(isAsc ? 'sort-desc' : 'sort-asc');
+                const direction = isAsc ? -1 : 1;
+                
+                // Sort array
+                rowArray.sort((a, b) => {
+                    const aText = a.querySelectorAll('td')[index].innerText.trim();
+                    const bText = b.querySelectorAll('td')[index].innerText.trim();
+                    return aText.localeCompare(bText, undefined, {numeric: true, sensitivity: 'base'}) * direction;
+                });
+                
+                // Append back to tbody
+                rowArray.forEach(row => tbody.appendChild(row));
+            });
+        });
+    });
+
+    function makeRowEditable(tr) {
+        tr.querySelectorAll('td').forEach(td => {
+            td.contentEditable = true;
+            td.className = 'editable-cell';
+        });
+        
+        const actionTd = document.createElement('td');
+        actionTd.className = 'editor-only';
+        actionTd.innerHTML = '<button class="btn btn-delete" onclick="this.closest(\'tr\').remove()">Delete</button>';
+        tr.appendChild(actionTd);
+    }
+
+    function addRow() {
+        const tbody = document.querySelector('#companiesTable tbody');
+        const tr = document.createElement('tr');
+        tr.innerHTML = '<td>New Company</td><td>ID</td><td>Voltage</td>';
+        makeRowEditable(tr);
+        tbody.prepend(tr); // Adds it to the top so it's easy to see
+    }
+
+    function generateAndCopy() {
+        // Clone the table to manipulate it without affecting the UI
+        const tableClone = document.getElementById('companiesTable').cloneNode(true);
+        
+        // Remove the editor-only Action columns, sorting indicators, and contenteditable attributes
+        tableClone.querySelectorAll('.editor-only').forEach(el => el.remove());
+        tableClone.querySelectorAll('th').forEach(th => th.classList.remove('sort-asc', 'sort-desc'));
+        tableClone.querySelectorAll('td').forEach(td => {
+            td.removeAttribute('contenteditable');
+            td.removeAttribute('class');
+        });
+
+        // Clean up the HTML structure for formatting
+        let rowsHtml = '';
+        tableClone.querySelectorAll('tbody tr').forEach(tr => {
+            rowsHtml += `    <tr>${tr.innerHTML}</tr>\n`;
+        });
+
+        // Construct the final raw HTML file string
+        const finalHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Companies List - Data Source</title>
+<style>
+    /* These styles apply to the raw data table */
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    table { border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
+    th, td { border: 1px solid #999; padding: 6px 10px; text-align: left; }
+    th { background: #f0f0f0; cursor: pointer; user-select: none; }
+    th:hover { background: #e0e0e0; }
+    th.sort-asc::after { content: " ▲"; font-size: 10px; margin-left: 5px; }
+    th.sort-desc::after { content: " ▼"; font-size: 10px; margin-left: 5px; }
+    
+    /* --- EDITOR UI STYLES (Only visible when managing the list) --- */
+    .instructions {
+        background: #fff3cd;
+        border: 1px solid #ffe08a;
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        font-size: 13px;
+        line-height: 1.6;
+    }
+    .editor-controls { margin-bottom: 15px; display: flex; gap: 10px; }
+    .btn { padding: 8px 15px; font-weight: bold; cursor: pointer; border: none; border-radius: 4px; color: white; }
+    .btn-add { background-color: #28a745; }
+    .btn-copy { background-color: #007bff; }
+    .btn-delete { background-color: #dc3545; padding: 4px 8px; font-size: 11px; }
+    .editable-cell { cursor: text; background-color: #f8f9fa; outline: none; }
+    .editable-cell:focus { background-color: #ffffff; box-shadow: inset 0 0 0 2px #007bff; }
+    th.editor-only { cursor: default; background: #f0f0f0; }
+    th.editor-only:hover { background: #f0f0f0; }
+    #output-container { display: none; margin-top: 20px; }
+    #code-output { width: 100%; height: 200px; font-family: monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="instructions" id="instruction-block">
+    <strong>Visual Editor Active</strong><br>
+    Click on any cell to edit it. Click on table headers to sort columns. Use the buttons below to add or remove companies. When you are finished, click <strong>"Generate & Copy HTML"</strong> and paste the result into your repository file.
+</div>
+
+<div class="editor-controls" id="editor-controls">
+    <button class="btn btn-add" onclick="addRow()">+ Add New Company</button>
+    <button class="btn btn-copy" onclick="generateAndCopy()">📋 Generate & Copy HTML</button>
+</div>
+
+<div id="output-container">
+    <strong style="color: #28a745;">✓ HTML Copied to Clipboard!</strong> Paste this into your <code>companieslist.html</code> file in your repository:
+    <textarea id="code-output" readonly></textarea>
+</div>
+
+<table id="companiesTable">
+  <thead>
+    <tr>
+        <th>Company Name</th>
+        <th>Company ID</th>
+        <th>Voltage Level</th>
+    </tr>
+  </thead>
+  <tbody>
+${rowsHtml.trimEnd()}
+  </tbody>
+</table>
+
+${document.querySelector('script').outerHTML}
+</body>
+</html>`;
+
+        // Output to text area and copy to clipboard
+        const outContainer = document.getElementById('output-container');
+        const codeOutput = document.getElementById('code-output');
+        
+        outContainer.style.display = 'block';
+        codeOutput.value = finalHtml;
+        codeOutput.select();
+        document.execCommand('copy');
+    }
+</script>
 </body>
 </html>
