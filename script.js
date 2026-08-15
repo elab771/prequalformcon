@@ -518,14 +518,43 @@ async function getPopulatedPDFBytes(data, companyName, templateBytes) {
     const normalizeValue = (value) => (value ?? '').toString().trim();
     const conditionalContextValue = (value) => normalizeValue(value).toUpperCase() === 'NO' ? normalizeValue(value) : '';
 
-    // ... (Keep your existing primaryFieldMap and contextFieldMap logic exactly as is) ...
+    const primaryFieldMap = {
+        txtengrname: data.name,
+        txtnationality: data.nationality,
+        txtidentityno: data.identity,
+        txtcompanyname: companyName,
+        txttotalexpyr: data.total_yrs,
+        txttotalexpmo: data.total_mos,
+        txtexpksayr: data.ksa_yrs,
+        txtexpksamo: data.ksa_mos,
+        txtmobileno: data.contact
+    };
+
+    Object.entries(primaryFieldMap).forEach(([fieldName, value]) => {
+        safeSetText(fieldName, value);
+    });
+
+    data.matrix.forEach(item => safeSetText(item.pdfField, item.value));
+
+    const contextFieldMap = {
+        ctxtengrname: data.name,
+        ctxtnationality: data.nationality,
+        ctxtidentityno: data.identity,
+        ctxtcompanyname: companyName,
+        ctxttotalexpyr: data.total_yrs,
+        ctxttotalexpmo: data.total_mos,
+        ctxtexpksayr: data.ksa_yrs,
+        ctxtexpksamo: data.ksa_mos,
+        ctxtmobileno: data.contact 
+    };
+
+    data.matrix.forEach(item => contextFieldMap[`c${item.pdfField}`] = item.value);
 
     Object.entries(contextFieldMap).forEach(([fieldName, value]) => {
         safeSetText(fieldName, conditionalContextValue(value));
     });
 
-    // 2. Force pdf-lib to redraw all fields using the embedded bold font 
-    // BEFORE setting them to read-only
+    // 2. Force pdf-lib to redraw all fields using the embedded bold font BEFORE locking
     form.updateFieldAppearances({ font: helveticaBold });
 
     form.getFields().forEach(field => {
