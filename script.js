@@ -891,9 +891,9 @@ async function handleFormSubmission(event, skipEml = false) {
 
             const finalPdfBytes = await mergedPdf.save();
             
-            const safeIqama = (engData.identity || 'noiqama').replace(/[^a-z0-9]/gi, '_');
             const safeCompanyId = (companyIdVal || 'nocompanyid').replace(/[^a-z0-9]/gi, '_');
-            const pdfFileName = `intreq${safeRegionVal}_${safeCompanyId}_${safeIqama}_${dateStrForFileName}.pdf`;
+            const safeEngineerName = (engData.name || 'noname').replace(/[^a-zA-Z0-9 ]/g, '');
+            const pdfFileName = `intreq_${safeCompanyId}_${safeEngineerName}_${dateStrForFileName}.pdf`;
 
             downloadBytesAsFile(finalPdfBytes, pdfFileName);
 
